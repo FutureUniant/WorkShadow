@@ -36,16 +36,16 @@ WorkShadow is not a general-purpose Word or Notion replacement—it is a **work 
 
 ## Installer vs development build
 
-The **installer** (Releases package) and **development build** (`npm run tauri dev`) share the same core features and are **both free**. The installer adds smart completion and onboarding (✅ yes / ❌ no):
+The **[installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe)** (Releases package) and **[development build](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe)** (`npm run tauri dev` or dev installer) share the same core features and are **both free**. The installer adds smart completion and onboarding (✅ yes / ❌ no):
 
-| | Dev build | Installer | Notes |
+| | [Dev build](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe) | [Installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe) | Notes |
 |---|:---:|:---:|------|
 | Price | 🆓 | 🆓 | |
 | Core features | ✅ | ✅ | |
 | Smart completion | ❌ | ✅ | Local; smarter over time |
 | Onboarding | ❌ | ✅ | |
 | Data on device | ✅ | ✅ | |
-| How to run | From source | Releases install | |
+| How to run | [Download](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe) / from source | [Download](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe) | |
 | Best for | Development | Daily use | |
 
 Completion and onboarding learn on your machine—log bodies are not uploaded. AI features are enabled only when you configure models in Settings.
@@ -56,7 +56,7 @@ Completion and onboarding learn on your machine—log bodies are not uploaded. A
 
 ### Log organization & editing
 
-- **Smart completion** (**installer only**): Suggests continuations at the cursor based on logs already saved locally; learning and inference stay on-device—no body text upload. **The more you use it, the better it matches your style.** Not included in the dev build from source.
+- **Smart completion** (**[installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe) only**): Suggests continuations at the cursor based on logs already saved locally; learning and inference stay on-device—no body text upload. **The more you use it, the better it matches your style.** Not included in the [development build](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe).
 - **Rich text**: Headings, lists, task lists, quotes, code blocks, tables, links, images, video, math, and more.
 - **Batch actions**: Multi-select nodes to move or delete in bulk.
 - **Import Markdown**: Bring existing `.md` files into a log entry and keep editing.
@@ -86,7 +86,7 @@ Completion and onboarding learn on your machine—log bodies are not uploaded. A
 
 ### Option 1: Installer
 
-Download the Windows installer from the project **Releases** page (or use a build you made yourself), then launch from the Start menu or desktop shortcut. Daily use:
+Download the **[installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe)** (`WorkShadow_x64-setup.exe`), or visit the [Releases](https://github.com/FutureUniant/WorkShadow/releases/tag/v0.1.0) page for all assets. Launch from the Start menu or desktop shortcut after installation. Daily use:
 
 #### 1. First launch
 
@@ -112,9 +112,11 @@ Download the Windows installer from the project **Releases** page (or use a buil
 
 Under **Settings → Data**, **export to a `.ws` file**; on another machine, **import from `.ws`** to merge (categories not included in the export are left unchanged).
 
-### Option 2: Run from source
+### Option 2: Development build (installer or source)
 
-For developers or anyone running the repo directly. Prerequisites:
+You can also install the **[development build](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe)** (`WorkShadow_0.1.0_x64-dev-setup.exe`) without setting up the dev environment below.
+
+To run from source—for developers or anyone running the repo directly—prerequisites:
 
 - **Node.js** 18+ (current LTS recommended)
 - **Rust + Cargo** (Tauri)
@@ -134,6 +136,38 @@ If port `1420` is in use, free it before retrying.
 > Note: `npm run tauri dev` is for local development and **does not** produce a distributable installer. For a release build, run `npm run build` then `npm run tauri build`; artifacts are usually under `src-tauri/target/release/bundle/`.
 
 After it starts, **daily use matches Option 1**—follow “First launch” through “Backup & migration” above.
+
+---
+
+## Contact us
+
+Questions, feedback, or partnership inquiries? Reach us through any of the channels below. The same QR codes are also available in the app under **Settings → About**.
+
+<p align="center">
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/wechat.jpg" alt="Administrator WeChat QR code" width="168" /><br />
+      <strong>Administrator WeChat</strong><br />
+      <sub>Scan to connect for support and discussion</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/wechat_public.jpg" alt="WeChat official account QR code" width="168" /><br />
+      <strong>WeChat official account</strong><br />
+      <sub>Scan to follow for product updates</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/qq_group.jpg" alt="WorkShadow QQ group QR code" width="168" /><br />
+      <strong>QQ group</strong><br />
+      <sub>Scan to join; group ID <strong>1107536375</strong></sub>
+    </td>
+  </tr>
+</table>
+</p>
+
+<p align="center">
+  <strong>Email</strong>: <a href="mailto:feiyangtech@qq.com">feiyangtech@qq.com</a>
+</p>
 
 ---
 

@@ -36,16 +36,16 @@ WorkShadow 不是替代 Word 或 Notion 的通用文档编辑器，而是面向*
 
 ## 安装版与开发版
 
-**安装版**（Releases 安装包）与**开发版**（`npm run tauri dev`）核心功能相同，**均免费**。安装版额外提供智能补全与新手引导（✅ 有 / ❌ 无）：
+**[安装版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe)**（Releases 安装包）与 **[开发版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe)**（`npm run tauri dev` 或下载开发版安装包）核心功能相同，**均免费**。安装版额外提供智能补全与新手引导（✅ 有 / ❌ 无）：
 
-| 对比项 | 开发版 | 安装版 | 备注 |
+| 对比项 | [开发版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe) | [安装版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe) | 备注 |
 |--------|:------:|:------:|------|
 | 费用 | 🆓 | 🆓 | |
 | 核心功能 | ✅ | ✅ | |
 | 智能补全 | ❌ | ✅ | 本地，越用越智能 |
 | 新手引导 | ❌ | ✅ | |
 | 数据在本地 | ✅ | ✅ | |
-| 获取 | 源码启动 | Releases 安装 | |
+| 获取 | [下载](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe) / 源码启动 | [下载](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe) | |
 | 适合 | 开发调试 | 日常使用 | |
 
 补全与引导均在本地学习，不上传日志；AI 能力由你在设置中自行配置。
@@ -56,7 +56,7 @@ WorkShadow 不是替代 Word 或 Notion 的通用文档编辑器，而是面向*
 
 ### 日志组织与编辑
 
-- **智能补全**（仅**安装版**）：编辑时根据你本地已保存的日志，在光标处给出续写建议；数据在本机学习与推断，不上传正文，**用得越久、记录越多，建议越贴合你的写法**。从源码启动的开发版不包含此功能。
+- **智能补全**（仅 **[安装版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe)**）：编辑时根据你本地已保存的日志，在光标处给出续写建议；数据在本机学习与推断，不上传正文，**用得越久、记录越多，建议越贴合你的写法**。[开发版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe)不包含此功能。
 - **富文本编辑**：标题、列表、任务清单、引用、代码块、表格、链接、图片、视频、公式等常用格式一应俱全。
 - **批量操作**：多选节点后批量移动或删除，整理大量历史日志更省力。
 - **导入 Markdown**：可将已有 `.md` 文件导入到某条日志中继续编辑。
@@ -86,7 +86,7 @@ WorkShadow 不是替代 Word 或 Notion 的通用文档编辑器，而是面向*
 
 ### 方式一：安装版
 
-从项目 **Releases 发布页** 下载并安装 Windows 安装包（或自行构建后的安装程序），安装完成后从开始菜单或桌面快捷方式启动即可。以下为安装后的日常使用说明。
+直接下载 **[安装版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe)**（`WorkShadow_x64-setup.exe`），或前往 [Releases 发布页](https://github.com/FutureUniant/WorkShadow/releases/tag/v0.1.0) 查看全部资源。安装完成后从开始菜单或桌面快捷方式启动即可。以下为安装后的日常使用说明。
 
 #### 1. 首次打开
 
@@ -112,9 +112,11 @@ WorkShadow 不是替代 Word 或 Notion 的通用文档编辑器，而是面向*
 
 在 **设置 → 数据** 中，将所需内容 **导出为 `.ws` 文件**；在新环境 **从 `.ws` 文件导入** 即可合并恢复（未勾选导出的类别不会被覆盖）。
 
-### 方式二：从源码启动桌面版
+### 方式二：开发版（安装包或源码）
 
-适合开发者或希望直接运行仓库代码的用户。需先准备：
+也可直接下载 **[开发版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe)**（`WorkShadow_0.1.0_x64-dev-setup.exe`）安装使用，无需配置下方开发环境。
+
+若希望从源码启动，适合开发者或希望直接运行仓库代码的用户。需先准备：
 
 - **Node.js** 18 及以上（推荐当前 LTS）
 - **Rust + Cargo**（Tauri 桌面壳依赖）
@@ -134,6 +136,38 @@ npm run tauri dev
 > 说明：`npm run tauri dev` 用于本机开发调试，**不会**生成可分发的安装包。若要打正式安装包，需执行 `npm run build` 后再 `npm run tauri build`，产物一般在 `src-tauri/target/release/bundle/` 目录。
 
 启动成功后，**日常使用与方式一相同**，请参照上文方式一中「首次打开」至「备份与迁移」的说明操作。
+
+---
+
+## 联系我们
+
+如有问题、建议或合作意向，欢迎通过以下方式联系。应用内也可在 **设置 → 关于** 查看相同二维码。
+
+<p align="center">
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/wechat.jpg" alt="管理员微信二维码" width="168" /><br />
+      <strong>管理员微信</strong><br />
+      <sub>扫码添加，便于反馈与交流</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/wechat_public.jpg" alt="微信公众号二维码" width="168" /><br />
+      <strong>微信公众号</strong><br />
+      <sub>扫码关注，获取产品动态</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/qq_group.jpg" alt="WorkShadow QQ 群二维码" width="168" /><br />
+      <strong>QQ 群</strong><br />
+      <sub>扫码加入群聊；群号 <strong>1107536375</strong></sub>
+    </td>
+  </tr>
+</table>
+</p>
+
+<p align="center">
+  <strong>电子邮箱</strong>：<a href="mailto:feiyangtech@qq.com">feiyangtech@qq.com</a>
+</p>
 
 ---
 

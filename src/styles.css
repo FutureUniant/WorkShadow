@@ -3900,6 +3900,62 @@ button.settings-data-import-btn.danger {
   color: var(--primary);
 }
 
+.settings-contact-qr-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 4px 0 20px;
+}
+
+.settings-contact-qr-card {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 16px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg) 18%, var(--panel));
+}
+
+.settings-contact-qr-card img {
+  width: 168px;
+  height: 168px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.settings-contact-qr-label {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-contact-qr-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 16em;
+}
+
+.settings-contact-email-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+@media (max-width: 560px) {
+  .settings-contact-qr-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .toast-item__main {
   min-width: 0;
   flex: 1;

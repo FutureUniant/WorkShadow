@@ -4,6 +4,8 @@ import { DataSettingsPanel } from "./DataSettingsPanel";
 import { DeveloperSettingsPanel } from "./DeveloperSettingsPanel";
 import { useTranslation } from "react-i18next";
 import aboutIcon from "../assets/logo.png";
+import wechatAdminQr from "../../docs/wechat.jpg";
+import wechatPublicQr from "../../docs/wechat_public.jpg";
 import pkg from "../../package.json";
 import type {
   AppSettings,
@@ -391,6 +393,20 @@ export function SettingsPanel({
                 {t("settingsAboutClosing")}
               </p>
               <h3 className="settings-about-section-title">{t("settingsAboutContact")}</h3>
+              <p className="settings-about-body muted">{t("settingsContactIntro")}</p>
+              <div className="settings-contact-qr-grid">
+                <figure className="settings-contact-qr-card">
+                  <img src={wechatAdminQr} width={168} height={168} alt={t("settingsContactWechatAdminAlt")} />
+                  <figcaption className="settings-contact-qr-label">{t("settingsContactWechatAdmin")}</figcaption>
+                  <p className="settings-contact-qr-hint muted">{t("settingsContactWechatAdminHint")}</p>
+                </figure>
+                <figure className="settings-contact-qr-card">
+                  <img src={wechatPublicQr} width={168} height={168} alt={t("settingsContactWechatPublicAlt")} />
+                  <figcaption className="settings-contact-qr-label">{t("settingsContactWechatPublic")}</figcaption>
+                  <p className="settings-contact-qr-hint muted">{t("settingsContactWechatPublicHint")}</p>
+                </figure>
+              </div>
+              <h4 className="settings-contact-email-title">{t("settingsContactEmail")}</h4>
               <p className="settings-about-body">
                 <button
                   type="button"
