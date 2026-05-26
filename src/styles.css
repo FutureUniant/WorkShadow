@@ -2029,6 +2029,33 @@ body:has(.activity-status-dock .activity-status) .toast-stack {
   font-weight: 600;
 }
 
+/* 表格选中：当前单元格、多选单元格、整表选中 */
+.rich-editor .ProseMirror td,
+.rich-editor .ProseMirror th {
+  position: relative;
+  transition: outline-color 0.12s ease, background-color 0.12s ease;
+}
+
+.rich-editor .ProseMirror td:focus-within,
+.rich-editor .ProseMirror th:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--primary) 58%, transparent);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+.rich-editor .ProseMirror .selectedCell {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  background-color: color-mix(in srgb, var(--primary) 14%, var(--panel)) !important;
+  z-index: 1;
+}
+
+.rich-editor .ProseMirror .tableWrapper.ProseMirror-selectednode {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
 .rich-editor .ProseMirror ul[data-type="taskList"] {
   list-style: none;
   padding-left: 0;

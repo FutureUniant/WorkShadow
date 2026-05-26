@@ -568,12 +568,43 @@ fn default_state() -> AppState {
     }
 }
 
+/// 在光标所在显示器（或当前/主显示器）上居中窗口，避免多屏时落在虚拟桌面正中。
+fn center_window_on_active_monitor(window: &tauri::WebviewWindow) {
+    use tauri::PhysicalPosition;
+
+    let monitor = window
+        .cursor_position()
+        .ok()
+        .and_then(|pos| window.monitor_from_point(pos.x, pos.y).ok().flatten())
+        .or_else(|| window.current_monitor().ok().flatten())
+        .or_else(|| window.primary_monitor().ok().flatten());
+
+    let Some(monitor) = monitor else {
+        let _ = window.center();
+        return;
+    };
+
+    let Ok(win_size) = window.outer_size() else {
+        let _ = window.center();
+        return;
+    };
+
+    let mon_pos = monitor.position();
+    let mon_size = monitor.size();
+    let x = mon_pos.x + (mon_size.width as i32 - win_size.width as i32) / 2;
+    let y = mon_pos.y + (mon_size.height as i32 - win_size.height as i32) / 2;
+    let _ = window.set_position(PhysicalPosition::new(x, y));
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             app_log::init(app.handle());
+            if let Some(window) = app.get_webview_window("main") {
+                center_window_on_active_monitor(&window);
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

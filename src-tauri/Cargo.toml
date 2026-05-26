@@ -1,6 +1,6 @@
 [package]
 name = "workshadow"
-version = "0.1.0"
+version = "0.1.1"
 description = "WorkShadow desktop app"
 authors = ["WorkShadow"]
 edition = "2021"

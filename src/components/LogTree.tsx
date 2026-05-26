@@ -121,9 +121,9 @@ function TreeNode({
         <button type="button" className="icon-button" onClick={() => onToggle(node.id)} aria-label="toggle">
           {hasChildren ? expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} /> : <span className="spacer" />}
         </button>
-        <button type="button" className="tree-label" onClick={() => onSelect(node.id)}>
+        <button type="button" className="tree-label" onClick={() => onSelect(node.id)} title={node.title}>
           {hasChildren ? <Folder size={16} /> : <FileText size={16} />}
-          <span>{node.title}</span>
+          <span title={node.title}>{node.title}</span>
         </button>
         <div className="tree-menu-anchor" data-tree-menu-anchor={node.id}>
           <button

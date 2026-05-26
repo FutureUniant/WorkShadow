@@ -72,6 +72,7 @@ import {
   Underline as UnderlineIcon,
   Undo2,
   Save,
+  PaintBucket,
   Type
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -81,7 +82,7 @@ import type { LogNode, ShortcutMap } from "../types";
 import { resolveVideoEmbed } from "../services/videoEmbed";
 import { collectLightboxItems, findLightboxIndex, type LightboxItem } from "../services/mediaGallery";
 import { ensureKatexStyles } from "../services/katexStyle";
-import { reportErrorToUser } from "../services/errorReporting";
+import { reportErrorToUser, reportSuccessNotice } from "../services/errorReporting";
 import { tiptapToMarkdown } from "../services/markdown";
 import { pickMarkdownFile } from "../services/pickMarkdownFile";
 import type { ConfirmOptions } from "../types";
@@ -105,6 +106,10 @@ const DEFAULT_HIGHLIGHT_COLOR = "#fef08a";
 const TEXT_COLOR_PRESETS = ["#2563eb", "#dc2626", "#059669", "#d97706", "#7c3aed"];
 /** 高亮下拉：除默认黄外的常用色 */
 const HIGHLIGHT_PRESETS = ["#fde047", "#f97316", "#4ade80", "#38bdf8", "#c084fc"];
+/** 表格单元格底色：除默认外的常用色 */
+const TABLE_CELL_BG_PRESETS = ["#eff6ff", "#fef2f2", "#f0fdf4", "#fffbeb", "#f3e8ff"];
+/** 表格单元格未设置底色时工具栏色条展示 */
+const DEFAULT_TABLE_CELL_BG = "#f8fafc";
 
 const FONT_MENU_W = 268;
 const FONT_MENU_H = 320;
@@ -314,8 +319,12 @@ export function EditorPane({
   const [titleEditing, setTitleEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [saveBusy, setSaveBusy] = useState(false);
-  const [saveDoneFlash, setSaveDoneFlash] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
+  const [tableFillMenuOpen, setTableFillMenuOpen] = useState(false);
+  const [tableFillMenuPos, setTableFillMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const tableFillAnchorRef = useRef<HTMLDivElement>(null);
+  const tableFillMenuRef = useRef<HTMLDivElement>(null);
+  const [tableFillDialogOpen, setTableFillDialogOpen] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -422,7 +431,9 @@ export function EditorPane({
       colorMenuOpen ||
       colorDialogOpen ||
       highlightMenuOpen ||
-      highlightDialogOpen
+      highlightDialogOpen ||
+      tableFillMenuOpen ||
+      tableFillDialogOpen
     ) {
       editor.commands.blur();
     }
@@ -436,7 +447,9 @@ export function EditorPane({
     colorMenuOpen,
     colorDialogOpen,
     highlightMenuOpen,
-    highlightDialogOpen
+    highlightDialogOpen,
+    tableFillMenuOpen,
+    tableFillDialogOpen
   ]);
 
   useEffect(() => {
@@ -596,6 +609,26 @@ export function EditorPane({
     };
   }, [highlightMenuOpen]);
 
+  useLayoutEffect(() => {
+    if (!tableFillMenuOpen) {
+      setTableFillMenuPos(null);
+      return;
+    }
+    const anchor = tableFillAnchorRef.current;
+    if (!anchor) return;
+    const place = () => {
+      const rect = anchor.getBoundingClientRect();
+      setTableFillMenuPos(clampToolbarDropdown(rect, COLOR_MENU_W, COLOR_MENU_H));
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [tableFillMenuOpen]);
+
   useEffect(() => {
     if (!emojiOpen) return;
     const onDocClick = (event: MouseEvent) => {
@@ -619,7 +652,7 @@ export function EditorPane({
   }, [tablePickerOpen]);
 
   useEffect(() => {
-    if (!fontMenuOpen && !colorMenuOpen && !highlightMenuOpen) return;
+    if (!fontMenuOpen && !colorMenuOpen && !highlightMenuOpen && !tableFillMenuOpen) return;
     const onDocClick = (event: MouseEvent) => {
       const target = event.target as Node;
       if (fontMenuOpen && (fontAnchorRef.current?.contains(target) || fontMenuRef.current?.contains(target))) return;
@@ -633,13 +666,19 @@ export function EditorPane({
         (highlightAnchorRef.current?.contains(target) || highlightMenuRef.current?.contains(target))
       )
         return;
+      if (
+        tableFillMenuOpen &&
+        (tableFillAnchorRef.current?.contains(target) || tableFillMenuRef.current?.contains(target))
+      )
+        return;
       setFontMenuOpen(false);
       setColorMenuOpen(false);
       setHighlightMenuOpen(false);
+      setTableFillMenuOpen(false);
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
-  }, [fontMenuOpen, colorMenuOpen, highlightMenuOpen]);
+  }, [fontMenuOpen, colorMenuOpen, highlightMenuOpen, tableFillMenuOpen]);
 
   const styleAttrs = useEditorState({
     editor,
@@ -692,21 +731,33 @@ export function EditorPane({
           canMerge: false,
           canSplit: false,
           cellAlign: null as string | null,
-          cellVerticalAlign: null as string | null
+          cellVerticalAlign: null as string | null,
+          cellBackgroundColor: null as string | null
         };
       }
       const inTable = ed.isActive("table");
       let cellAlign: string | null = null;
       let cellVerticalAlign: string | null = null;
+      let cellBackgroundColor: string | null = null;
       if (inTable) {
         if (ed.isActive("tableHeader")) {
-          const a = ed.getAttributes("tableHeader") as { align?: string | null; verticalAlign?: string | null };
+          const a = ed.getAttributes("tableHeader") as {
+            align?: string | null;
+            verticalAlign?: string | null;
+            backgroundColor?: string | null;
+          };
           cellAlign = a.align ?? null;
           cellVerticalAlign = a.verticalAlign ?? null;
+          cellBackgroundColor = a.backgroundColor ?? null;
         } else if (ed.isActive("tableCell")) {
-          const a = ed.getAttributes("tableCell") as { align?: string | null; verticalAlign?: string | null };
+          const a = ed.getAttributes("tableCell") as {
+            align?: string | null;
+            verticalAlign?: string | null;
+            backgroundColor?: string | null;
+          };
           cellAlign = a.align ?? null;
           cellVerticalAlign = a.verticalAlign ?? null;
+          cellBackgroundColor = a.backgroundColor ?? null;
         }
       }
       return {
@@ -714,10 +765,18 @@ export function EditorPane({
         canMerge: ed.can().mergeCells?.() ?? false,
         canSplit: ed.can().splitCell?.() ?? false,
         cellAlign,
-        cellVerticalAlign
+        cellVerticalAlign,
+        cellBackgroundColor
       };
     }
   });
+
+  const tableCellBgNorm = (tableUi?.cellBackgroundColor ?? "").trim().toLowerCase();
+  const effectiveTableCellBg =
+    tableUi?.cellBackgroundColor && isHexColor(tableUi.cellBackgroundColor)
+      ? tableUi.cellBackgroundColor
+      : DEFAULT_TABLE_CELL_BG;
+  const tableCellBgClearSelected = !tableCellBgNorm;
 
   const editorMainRef = useRef<HTMLDivElement>(null);
   const logScrollRef = useRef<Record<string, number>>({});
@@ -755,17 +814,15 @@ export function EditorPane({
     if (!editor || !node) return;
     if (saveBusy) return;
     setSaveBusy(true);
-    setSaveDoneFlash(false);
     try {
       await Promise.resolve(onSave());
-      setSaveDoneFlash(true);
-      window.setTimeout(() => setSaveDoneFlash(false), 2800);
-    } catch {
-      /* 错误已由保存管线通过 reportErrorToUser 提示 */
+      reportSuccessNotice(t("saveDoneTitle"), t("saveDoneSummary"));
+    } catch (e) {
+      reportErrorToUser("persist", e, { severity: "toast" });
     } finally {
       setSaveBusy(false);
     }
-  }, [editor, node, saveBusy, onSave]);
+  }, [editor, node, saveBusy, onSave, t]);
 
   useEffect(() => {
     if (!editor || preview || !node) return;
@@ -1207,6 +1264,61 @@ export function EditorPane({
                 >
                   <RotateCcw size={16} />
                 </ToolBtn>
+                <span className="toolbar-sep" aria-hidden />
+                <div ref={tableFillAnchorRef} className="toolbar-inline-anchor">
+                  <div
+                    className={[
+                      "toolbar-font-color-split",
+                      "toolbar-font-color-split--marker",
+                      "tool",
+                      tableFillMenuOpen || tableFillDialogOpen ? "active" : ""
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    <button
+                      type="button"
+                      className="toolbar-font-color-split__apply"
+                      title={t("toolbarTableFillApply")}
+                      aria-label={t("toolbarTableFillApply")}
+                      disabled={!tableUi?.inTable}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setTableFillDialogOpen(false);
+                        setTableFillMenuOpen(false);
+                        chain()?.setCellAttribute("backgroundColor", effectiveTableCellBg).run();
+                      }}
+                    >
+                      <span className="toolbar-font-color-trigger__core">
+                        <PaintBucket className="toolbar-font-color-trigger__marker-icon" size={15} strokeWidth={2} aria-hidden />
+                        <span
+                          className="toolbar-font-color-trigger__bar"
+                          style={{ backgroundColor: effectiveTableCellBg }}
+                          aria-hidden
+                        />
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="toolbar-font-color-split__menu"
+                      title={t("toolbarTableFillOpenPalette")}
+                      aria-label={t("toolbarTableFillOpenPalette")}
+                      aria-expanded={tableFillMenuOpen}
+                      aria-haspopup="listbox"
+                      disabled={!tableUi?.inTable}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setTableFillDialogOpen(false);
+                        setTableFillMenuOpen((open) => !open);
+                        setFontMenuOpen(false);
+                        setColorMenuOpen(false);
+                        setHighlightMenuOpen(false);
+                      }}
+                    >
+                      <ChevronDown size={14} strokeWidth={2} aria-hidden />
+                    </button>
+                  </div>
+                </div>
                 <ToolBtn title={t("toolbarTableDelete")} onClick={() => chain()?.deleteTable().run()} disabled={!editor?.can().deleteTable()}>
                   <XCircle size={16} />
                 </ToolBtn>
@@ -1214,11 +1326,6 @@ export function EditorPane({
             </div>
           </div>
           <div className="toolbar-actions">
-            {saveDoneFlash ? (
-              <span className="toolbar-save-done" role="status">
-                {t("saveDoneHint")}
-              </span>
-            ) : null}
             <button type="button" className="ghost" onClick={onPreviewToggle}>
               {preview ? t("modeEdit") : t("modePreview")}
             </button>
@@ -1528,6 +1635,68 @@ export function EditorPane({
             document.body
           )
         : null}
+      {tableFillMenuOpen && tableFillMenuPos
+        ? createPortal(
+            <div
+              ref={tableFillMenuRef}
+              className="toolbar-color-palette-popover toolbar-dropdown-popover--portal"
+              style={{ top: tableFillMenuPos.top, left: tableFillMenuPos.left, width: COLOR_MENU_W }}
+              role="listbox"
+              aria-label={t("toolbarTableFill")}
+            >
+              <div className="toolbar-color-palette-popover__row1" role="presentation">
+                <button
+                  type="button"
+                  className={[
+                    "toolbar-color-palette-swatch",
+                    "toolbar-color-palette-swatch--clear",
+                    tableCellBgClearSelected ? "toolbar-color-palette-swatch--active" : ""
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  aria-label={t("toolbarTableFillClear")}
+                  title={t("toolbarTableFillClear")}
+                  onClick={() => {
+                    chain()?.setCellAttribute("backgroundColor", null).run();
+                    setTableFillMenuOpen(false);
+                  }}
+                />
+                {TABLE_CELL_BG_PRESETS.map((presetHex) => {
+                  const selected = !!tableCellBgNorm && tableCellBgNorm === presetHex.toLowerCase();
+                  return (
+                    <button
+                      key={presetHex}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      title={presetHex}
+                      className={["toolbar-color-palette-swatch", selected ? "toolbar-color-palette-swatch--active" : ""]
+                        .filter(Boolean)
+                        .join(" ")}
+                      style={{ backgroundColor: presetHex }}
+                      onClick={() => {
+                        chain()?.setCellAttribute("backgroundColor", presetHex).run();
+                        setTableFillMenuOpen(false);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                className="toolbar-color-palette-popover__row2"
+                onClick={() => {
+                  setTableFillMenuOpen(false);
+                  setTableFillDialogOpen(true);
+                }}
+              >
+                <Pipette size={16} strokeWidth={2} className="toolbar-color-palette-popover__row2-icon" aria-hidden />
+                <span>{t("toolbarTableFillCustom")}</span>
+              </button>
+            </div>,
+            document.body
+          )
+        : null}
       <TextColorDialog
         open={colorDialogOpen}
         initialHex={styleAttrs?.color && isHexColor(styleAttrs.color) ? styleAttrs.color : DEFAULT_TEXT_COLOR}
@@ -1547,6 +1716,20 @@ export function EditorPane({
         onClose={() => setHighlightDialogOpen(false)}
         onConfirm={(hex) => {
           chain()?.setHighlight({ color: hex }).run();
+        }}
+      />
+      <TextColorDialog
+        open={tableFillDialogOpen}
+        initialHex={
+          tableUi?.cellBackgroundColor && isHexColor(tableUi.cellBackgroundColor)
+            ? tableUi.cellBackgroundColor
+            : DEFAULT_TABLE_CELL_BG
+        }
+        titleKey="dialogTableFillColorTitle"
+        headerId="table-fill-color-dialog-title"
+        onClose={() => setTableFillDialogOpen(false)}
+        onConfirm={(hex) => {
+          chain()?.setCellAttribute("backgroundColor", hex).run();
         }}
       />
       <LinkInsertDialog

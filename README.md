@@ -36,16 +36,19 @@ WorkShadow 不是替代 Word 或 Notion 的通用文档编辑器，而是面向*
 
 ## 安装版与开发版
 
-**[安装版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe)**（Releases 安装包）与 **[开发版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe)**（`npm run tauri dev` 或下载开发版安装包）核心功能相同，**均免费**。安装版额外提供智能补全与新手引导（✅ 有 / ❌ 无）：
+**[安装版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_x64-setup.exe)**（Releases 安装包）与 **[开发版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe)**（`npm run tauri dev` 或下载开发版安装包）核心功能相同，**均免费**。安装版对程序做了专项优化，编辑更**丝滑、流畅**；并额外提供智能补全与新手引导（✅ 有 / ❌ 无）：
 
-| 对比项 | [开发版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe) | [安装版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe) | 备注 |
+| 对比项 | [开发版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe) | [安装版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_x64-setup.exe) | 备注 |
 |--------|:------:|:------:|------|
 | 费用 | 🆓 | 🆓 | |
 | 核心功能 | ✅ | ✅ | |
+| 编辑性能优化 | ❌ | ✅ | 更丝滑、流畅的编辑体验 |
+| 更友好、更美观的 UI 交互界面 | ❌ | ✅ | 更顺手的日常使用体验 |
+| 图像复制、拖拽 | ❌ | ✅ | 支持粘贴 / 拖拽插入图片 |
 | 智能补全 | ❌ | ✅ | 本地，越用越智能 |
 | 新手引导 | ❌ | ✅ | |
 | 数据在本地 | ✅ | ✅ | |
-| 获取 | [下载](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe) / 源码启动 | [下载](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe) | |
+| 获取 | [下载](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe) / 源码启动 | [下载](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_x64-setup.exe) | |
 | 适合 | 开发调试 | 日常使用 | |
 
 补全与引导均在本地学习，不上传日志；AI 能力由你在设置中自行配置。
@@ -56,8 +59,9 @@ WorkShadow 不是替代 Word 或 Notion 的通用文档编辑器，而是面向*
 
 ### 日志组织与编辑
 
-- **智能补全**（仅 **[安装版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe)**）：编辑时根据你本地已保存的日志，在光标处给出续写建议；数据在本机学习与推断，不上传正文，**用得越久、记录越多，建议越贴合你的写法**。[开发版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe)不包含此功能。
+- **智能补全**（仅 **[安装版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_x64-setup.exe)**）：编辑时根据你本地已保存的日志，在光标处给出续写建议；数据在本机学习与推断，不上传正文，**用得越久、记录越多，建议越贴合你的写法**。[开发版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe)不包含此功能。
 - **富文本编辑**：标题、列表、任务清单、引用、代码块、表格、链接、图片、视频、公式等常用格式一应俱全。
+- **图像复制、拖拽**（仅 **[安装版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_x64-setup.exe)**）：支持从剪贴板粘贴图片，或将图片文件拖入编辑区插入。[开发版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe)不包含此功能。
 - **批量操作**：多选节点后批量移动或删除，整理大量历史日志更省力。
 - **导入 Markdown**：可将已有 `.md` 文件导入到某条日志中继续编辑。
 
@@ -86,7 +90,7 @@ WorkShadow 不是替代 Word 或 Notion 的通用文档编辑器，而是面向*
 
 ### 方式一：安装版
 
-直接下载 **[安装版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_x64-setup.exe)**（`WorkShadow_x64-setup.exe`），或前往 [Releases 发布页](https://github.com/FutureUniant/WorkShadow/releases/tag/v0.1.0) 查看全部资源。安装完成后从开始菜单或桌面快捷方式启动即可。以下为安装后的日常使用说明。
+直接下载 **[安装版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_x64-setup.exe)**（`WorkShadow_x64-setup.exe`），或前往 [Releases 发布页](https://github.com/FutureUniant/WorkShadow/releases/tag/v0.1.1) 查看全部资源。安装完成后从开始菜单或桌面快捷方式启动即可。以下为安装后的日常使用说明。
 
 #### 1. 首次打开
 
@@ -114,7 +118,7 @@ WorkShadow 不是替代 Word 或 Notion 的通用文档编辑器，而是面向*
 
 ### 方式二：开发版（安装包或源码）
 
-也可直接下载 **[开发版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.0/WorkShadow_0.1.0_x64-dev-setup.exe)**（`WorkShadow_0.1.0_x64-dev-setup.exe`）安装使用，无需配置下方开发环境。
+也可直接下载 **[开发版](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe)**（`WorkShadow_0.1.1_x64-dev-setup.exe`）安装使用，无需配置下方开发环境。
 
 若希望从源码启动，适合开发者或希望直接运行仓库代码的用户。需先准备：
 
