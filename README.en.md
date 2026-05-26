@@ -36,9 +36,9 @@ WorkShadow is not a general-purpose Word or Notion replacement—it is a **work 
 
 ## Installer vs development build
 
-The **[installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_x64-setup.exe)** (Releases package) and **[development build](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe)** (`npm run tauri dev` or dev installer) share the same core features and are **both free**. The installer is **optimized for smoother, more fluid editing**; it also adds smart completion and onboarding (✅ yes / ❌ no):
+The **[installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-setup.exe)** (Releases package) and **[development build](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe)** (`npm run tauri dev` or dev installer) share the same core features and are **both free**. The installer is **optimized for smoother, more fluid editing**; it also adds smart completion and onboarding (✅ yes / ❌ no):
 
-| | [Dev build](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe) | [Installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_x64-setup.exe) | Notes |
+| | [Dev build](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe) | [Installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-setup.exe) | Notes |
 |---|:---:|:---:|------|
 | Price | 🆓 | 🆓 | |
 | Core features | ✅ | ✅ | |
@@ -48,7 +48,7 @@ The **[installer](https://github.com/FutureUniant/WorkShadow/releases/download/v
 | Smart completion | ❌ | ✅ | Local; smarter over time |
 | Onboarding | ❌ | ✅ | |
 | Data on device | ✅ | ✅ | |
-| How to run | [Download](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe) / from source | [Download](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_x64-setup.exe) | |
+| How to run | [Download](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe) / from source | [Download](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-setup.exe) | |
 | Best for | Development | Daily use | |
 
 Completion and onboarding learn on your machine—log bodies are not uploaded. AI features are enabled only when you configure models in Settings.
@@ -59,9 +59,9 @@ Completion and onboarding learn on your machine—log bodies are not uploaded. A
 
 ### Log organization & editing
 
-- **Smart completion** (**[installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_x64-setup.exe) only**): Suggests continuations at the cursor based on logs already saved locally; learning and inference stay on-device—no body text upload. **The more you use it, the better it matches your style.** Not included in the [development build](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe).
+- **Smart completion** (**[installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-setup.exe) only**): Suggests continuations at the cursor based on logs already saved locally; learning and inference stay on-device—no body text upload. **The more you use it, the better it matches your style.** Not included in the [development build](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe).
 - **Rich text**: Headings, lists, task lists, quotes, code blocks, tables, links, images, video, math, and more.
-- **Image copy/paste & drag-and-drop** (**[installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_x64-setup.exe) only**): Paste images from the clipboard or drag image files into the editor. Not included in the [development build](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe).
+- **Image copy/paste & drag-and-drop** (**[installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-setup.exe) only**): Paste images from the clipboard or drag image files into the editor. Not included in the [development build](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-dev-setup.exe).
 - **Batch actions**: Multi-select nodes to move or delete in bulk.
 - **Import Markdown**: Bring existing `.md` files into a log entry and keep editing.
 
@@ -90,7 +90,7 @@ Completion and onboarding learn on your machine—log bodies are not uploaded. A
 
 ### Option 1: Installer
 
-Download the **[installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_x64-setup.exe)** (`WorkShadow_x64-setup.exe`), or visit the [Releases](https://github.com/FutureUniant/WorkShadow/releases/tag/v0.1.1) page for all assets. Launch from the Start menu or desktop shortcut after installation. Daily use:
+Download the **[installer](https://github.com/FutureUniant/WorkShadow/releases/download/v0.1.1/WorkShadow_0.1.1_x64-setup.exe)** (`WorkShadow_0.1.1_x64-setup.exe`), or visit the [Releases](https://github.com/FutureUniant/WorkShadow/releases/tag/v0.1.1) page for all assets. Launch from the Start menu or desktop shortcut after installation. Daily use:
 
 #### 1. First launch
 
