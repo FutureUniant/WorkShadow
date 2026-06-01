@@ -175,6 +175,14 @@ npm run tauri dev
 
 ---
 
+## 国内托管（AtomGit）
+
+国内用户可通过 **AtomGit（GitCode）** 访问与本仓库同步的开源托管：
+
+**项目在 AtomGit**：[https://gitcode.com/FutureUniant/WorkShadow](https://gitcode.com/FutureUniant/WorkShadow)
+
+---
+
 ## 开源与许可
 
 本仓库以 **[GNU Affero General Public License v3.0（AGPL-3.0）](https://www.gnu.org/licenses/agpl-3.0.html)** 发布。
