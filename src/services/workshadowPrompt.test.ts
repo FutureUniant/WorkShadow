@@ -11,5 +11,11 @@ describe("workshadowPrompt", () => {
   it("buildLogQaSystem is Chinese when locale is zh", () => {
     const system = buildLogQaSystem(true);
     expect(system).toMatch(/你是 WorkShadow/);
+    expect(system).toMatch(/Markdown/);
+  });
+
+  it("buildLogQaSystem asks for Markdown output in English", () => {
+    const system = buildLogQaSystem(false);
+    expect(system).toMatch(/Markdown/i);
   });
 });

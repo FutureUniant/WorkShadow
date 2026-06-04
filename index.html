@@ -1,105 +1,1790 @@
 <!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WorkShadow</title>
-    <script>
-      /*__WORKSHADOW_BOOT_DATA__*/
-      (function () {
-        var theme = "light";
-        try {
-          var stored = localStorage.getItem("workshadow.bootTheme");
-          if (stored === "dark" || stored === "light") theme = stored;
-        } catch (e) {}
-        document.documentElement.setAttribute("data-boot-theme", theme);
-        var data = window.__WORKSHADOW_BOOT_DATA__;
-        if (data) {
-          window.__WORKSHADOW_BOOT_LOGO__ = theme === "dark" ? data.dark : data.light;
-        }
-      })();
-    </script>
-    <style>
-      html,
-      body {
-        margin: 0;
-        height: 100%;
-        background: #f7f8fb;
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="./assets/icon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="WorkShadow — 如影随形 · 本地优先桌面工作日志：富文本记录、语义检索、工作台总结与问答。数据留在本机，模型自配。" />
+  <meta name="theme-color" content="#f4f7fb" />
+  <title>WorkShadow · 如影随形</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Noto+Sans+SC:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+  <script>
+    (function () {
+      var t = localStorage.getItem("ws-theme");
+      if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+      var l = localStorage.getItem("ws-locale");
+      if (l === "zh" || l === "en") document.documentElement.dataset.locale = l;
+    })();
+  </script>
+  <style>:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #070b14;
+  --bg-elevated: #0d1320;
+  --bg-card: rgba(14, 22, 38, 0.72);
+  --border: rgba(148, 163, 184, 0.12);
+  --border-strong: rgba(99, 179, 237, 0.28);
+  --text: #e8edf7;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --accent: #38bdf8;
+  --accent-2: #6366f1;
+  --accent-glow: rgba(56, 189, 248, 0.28);
+  --gradient: linear-gradient(135deg, #38bdf8 0%, #818cf8 55%, #c084fc 100%);
+  --gradient-brand-text: linear-gradient(135deg, #f299d9 0%, #c084fc 42%, #7b85f5 100%);
+  --radius: 16px;
+  --radius-lg: 24px;
+  --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  --font: "Noto Sans SC", "Inter", system-ui, sans-serif;
+  --container: min(1120px, calc(100% - 48px));
+  --header-h: 72px;
+  --header-scrolled-bg: rgba(7, 11, 20, 0.82);
+  --header-mobile-nav-bg: rgba(7, 11, 20, 0.96);
+  --btn-primary-fg: #061018;
+  --btn-primary-hover-shadow: rgba(56, 189, 248, 0.45);
+  --btn-outline-bg: rgba(56, 189, 248, 0.06);
+  --btn-outline-bg-hover: rgba(56, 189, 248, 0.12);
+  --surface-float: rgba(13, 19, 32, 0.82);
+  --surface-tip: rgba(13, 19, 32, 0.92);
+  --float-icon-bg: rgba(56, 189, 248, 0.1);
+  --badge-bg: rgba(13, 19, 32, 0.6);
+  --frame-bar-bg: rgba(0, 0, 0, 0.25);
+  --frame-inset: rgba(255, 255, 255, 0.03);
+  --section-alt-bg: linear-gradient(180deg, transparent, rgba(13, 19, 32, 0.55), transparent);
+  --glow-a: rgba(56, 189, 248, 0.18);
+  --glow-b: rgba(99, 102, 241, 0.1);
+  --grid-line: rgba(148, 163, 184, 0.04);
+  --scroll-bar: rgba(148, 163, 184, 0.32);
+  --scroll-bar-hover: rgba(148, 163, 184, 0.5);
+  --card-icon-bg: rgba(56, 189, 248, 0.1);
+  --compare-head-bg: rgba(56, 189, 248, 0.08);
+  --cta-bg-a: rgba(56, 189, 248, 0.12);
+  --cta-bg-b: rgba(129, 140, 248, 0.1);
+  --toggle-bg: rgba(13, 19, 32, 0.65);
+  --toggle-bg-hover: rgba(13, 19, 32, 0.85);
+  --brand-icon-glow: rgba(192, 132, 252, 0.32);
+  --surface: rgba(0, 0, 0, 0.25);
+  --surface-elevated: var(--bg-elevated);
+  --input-bg: rgba(7, 11, 20, 0.55);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f7fb;
+  --bg-elevated: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --border: rgba(15, 23, 42, 0.1);
+  --border-strong: rgba(2, 132, 199, 0.28);
+  --text: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #64748b;
+  --accent: #0284c7;
+  --accent-2: #4f46e5;
+  --accent-glow: rgba(2, 132, 199, 0.22);
+  --gradient: linear-gradient(135deg, #0ea5e9 0%, #6366f1 55%, #8b5cf6 100%);
+  /** 亮色：粉紫品牌色，略加深以提升可读性，色相与 icon 一致 */
+  --gradient-brand-text: linear-gradient(135deg, #d946ef 0%, #a855f7 42%, #7c3aed 100%);
+  --shadow: 0 20px 60px rgba(15, 23, 42, 0.1);
+  --header-scrolled-bg: rgba(255, 255, 255, 0.9);
+  --header-mobile-nav-bg: rgba(255, 255, 255, 0.98);
+  --btn-primary-fg: #ffffff;
+  --btn-primary-hover-shadow: rgba(2, 132, 199, 0.35);
+  --btn-outline-bg: rgba(2, 132, 199, 0.06);
+  --btn-outline-bg-hover: rgba(2, 132, 199, 0.1);
+  --surface-float: rgba(255, 255, 255, 0.94);
+  --surface-tip: rgba(255, 255, 255, 0.98);
+  --float-icon-bg: rgba(2, 132, 199, 0.08);
+  --badge-bg: rgba(255, 255, 255, 0.9);
+  --frame-bar-bg: rgba(241, 245, 249, 0.98);
+  --frame-inset: rgba(15, 23, 42, 0.04);
+  --section-alt-bg: linear-gradient(180deg, transparent, rgba(226, 232, 240, 0.65), transparent);
+  --glow-a: rgba(14, 165, 233, 0.14);
+  --glow-b: rgba(99, 102, 241, 0.1);
+  --grid-line: rgba(15, 23, 42, 0.05);
+  --scroll-bar: rgba(100, 116, 139, 0.28);
+  --scroll-bar-hover: rgba(100, 116, 139, 0.45);
+  --card-icon-bg: rgba(2, 132, 199, 0.08);
+  --compare-head-bg: rgba(2, 132, 199, 0.06);
+  --cta-bg-a: rgba(14, 165, 233, 0.08);
+  --cta-bg-b: rgba(99, 102, 241, 0.06);
+  --toggle-bg: rgba(255, 255, 255, 0.85);
+  --toggle-bg-hover: rgba(255, 255, 255, 1);
+  --brand-icon-glow: rgba(168, 85, 247, 0.34);
+  --surface: #ffffff;
+  --surface-elevated: var(--bg-elevated);
+  --input-bg: #ffffff;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+.container {
+  width: var(--container);
+  margin-inline: auto;
+}
+
+.page {
+  position: relative;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+.page__glow {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.page__glow--a {
+  width: 520px;
+  height: 520px;
+  top: -120px;
+  right: -80px;
+  background: var(--glow-a);
+}
+
+.page__glow--b {
+  width: 480px;
+  height: 480px;
+  bottom: 10%;
+  left: -120px;
+  background: var(--glow-b);
+}
+
+.page__grid {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black, transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.page > header,
+.page > main,
+.page > footer {
+  position: relative;
+  z-index: 1;
+}
+
+/* Header */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: var(--header-h);
+  transition: background 0.3s, border-color 0.3s, backdrop-filter 0.3s;
+}
+
+.header--scrolled {
+  background: var(--header-scrolled-bg);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+
+.header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-h);
+  gap: 24px;
+}
+
+.header__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+
+.header__nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.header__link {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+
+.header__link:hover {
+  color: var(--text);
+}
+
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header__icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--toggle-bg);
+  color: var(--text-muted);
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+}
+
+.header__icon-btn:hover {
+  color: var(--text);
+  background: var(--toggle-bg-hover);
+  border-color: var(--border-strong);
+}
+
+.header__lang-btn {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.header__icon-btn .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.header__menu {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+}
+
+.header__menu span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+  transition: transform 0.25s, opacity 0.25s;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn--sm {
+  padding: 8px 14px;
+  font-size: 0.85rem;
+}
+
+.btn--lg {
+  padding: 14px 22px;
+  font-size: 0.95rem;
+}
+
+.btn--primary {
+  background: var(--gradient);
+  color: var(--btn-primary-fg);
+  box-shadow: 0 8px 32px var(--accent-glow);
+}
+
+.btn--primary:hover {
+  box-shadow: 0 12px 40px var(--btn-primary-hover-shadow);
+}
+
+.btn--outline {
+  border: 1px solid var(--border-strong);
+  background: var(--btn-outline-bg);
+  color: var(--text);
+}
+
+.btn--outline:hover {
+  background: var(--btn-outline-bg-hover);
+}
+
+.btn--ghost {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.btn--ghost:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.btn--disabled,
+.btn--disabled:hover,
+button.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: auto;
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Hero */
+.hero {
+  padding: calc(var(--header-h) + 64px) 0 96px;
+}
+
+.hero__grid {
+  display: grid;
+  grid-template-columns: 1fr 1.05fr;
+  gap: 56px;
+  align-items: center;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 20px;
+  padding: 8px 14px 8px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  backdrop-filter: blur(8px);
+}
+
+/* 品牌：icon + 横版字标 */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 0;
+  flex-shrink: 0;
+}
+
+.brand__icon {
+  width: var(--brand-icon, 32px);
+  height: var(--brand-icon, 32px);
+  flex-shrink: 0;
+  border-radius: 9px;
+  object-fit: contain;
+  box-shadow: 0 0 20px var(--brand-icon-glow);
+}
+
+.brand__wordmark {
+  height: var(--brand-wordmark, 26px);
+  width: auto;
+  max-width: min(220px, 42vw);
+  object-fit: contain;
+  object-position: left center;
+}
+
+.hero__title {
+  margin: 0 0 12px;
+}
+
+.hero__slogan {
+  margin: 0 0 16px;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  background: var(--gradient-brand-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero__tagline {
+  margin: 0 0 20px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: 0.04em;
+}
+
+.hero__brand {
+  gap: 14px;
+}
+
+.hero__brand .brand__icon {
+  width: clamp(44px, 7vw, 56px);
+  height: clamp(44px, 7vw, 56px);
+  border-radius: 12px;
+}
+
+.hero__brand .brand__wordmark {
+  height: clamp(36px, 5.5vw, 48px);
+  max-width: min(320px, 78vw);
+}
+
+.hero__title-text {
+  display: block;
+  margin-top: 0;
+  font-size: clamp(2.25rem, 4.5vw, 3.5rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  background: var(--gradient-brand-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero__desc {
+  margin: 0 0 32px;
+  max-width: 520px;
+  color: var(--text-muted);
+  font-size: 1.05rem;
+}
+
+.hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.hero__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hero__badges li {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  background: var(--badge-bg);
+}
+
+.hero__visual {
+  position: relative;
+}
+
+.hero__frame {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow), 0 0 0 1px var(--frame-inset) inset;
+  overflow: hidden;
+}
+
+.hero__frame-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--frame-bar-bg);
+}
+
+.hero__frame-bar span:nth-child(-n + 3) {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.25);
+}
+
+.hero__frame-bar span:nth-child(1) {
+  background: #f87171;
+}
+.hero__frame-bar span:nth-child(2) {
+  background: #fbbf24;
+}
+.hero__frame-bar span:nth-child(3) {
+  background: #4ade80;
+}
+
+.hero__shot {
+  width: 100%;
+}
+
+.hero__float {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-float);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  animation: float 6s ease-in-out infinite;
+}
+
+.hero__float-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--float-icon-bg);
+  color: var(--accent);
+}
+
+.hero__float-icon .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.hero__float strong {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.hero__float span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.hero__float--a {
+  left: -24px;
+  bottom: 12%;
+}
+
+.hero__float--b {
+  right: -16px;
+  top: 8%;
+  animation-delay: -1.5s;
+}
+
+.hero__float--c {
+  left: -12px;
+  top: 38%;
+  animation-delay: -3s;
+}
+
+.hero__float--d {
+  right: -20px;
+  bottom: 28%;
+  animation-delay: -4.5s;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Sections */
+.section {
+  padding: 96px 0;
+}
+
+.section--alt {
+  background: var(--section-alt-bg);
+}
+
+.section__head {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 56px;
+}
+
+.section__head--left {
+  text-align: left;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.section__eyebrow {
+  margin: 0 0 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.section__title {
+  margin: 0 0 16px;
+  font-size: clamp(1.75rem, 3vw, 2.35rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.section__desc {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+/* Cards */
+.cards {
+  display: grid;
+  gap: 20px;
+}
+
+.cards--4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.card {
+  padding: 28px 24px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  transition: border-color 0.25s, transform 0.25s;
+}
+
+.card--glow:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-4px);
+}
+
+.card__icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 18px;
+  border-radius: 12px;
+  background: var(--card-icon-bg);
+  color: var(--accent);
+}
+
+.card__icon .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.card__title {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+}
+
+.card__desc {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+/* Scenarios */
+.scenario-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scenario-row {
+  display: grid;
+  grid-template-columns: 48px 1fr 32px 1.2fr;
+  gap: 16px;
+  align-items: center;
+  padding: 20px 24px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  transition: border-color 0.2s;
+}
+
+.scenario-row:hover {
+  border-color: var(--border-strong);
+}
+
+.scenario-row__index {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.scenario-row__pain {
+  color: var(--text-muted);
+}
+
+.scenario-row__arrow {
+  text-align: center;
+  color: var(--accent-2);
+  font-size: 1.1rem;
+}
+
+.scenario-row__solution {
+  font-weight: 500;
+}
+
+/* Showcase */
+.showcase__panel {
+  position: relative;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.showcase__img {
+  width: 100%;
+}
+
+/* Scroll spy */
+.scroll-spy {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  z-index: 90;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s, transform 0.35s;
+}
+
+.scroll-spy--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.scroll-spy__track {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+}
+
+.scroll-spy__bar {
+  position: relative;
+  display: block;
+  width: 22px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--scroll-bar);
+  transition: width 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.scroll-spy__bar:hover,
+.scroll-spy__bar:focus-visible {
+  width: 28px;
+  background: var(--scroll-bar-hover);
+  outline: none;
+}
+
+.scroll-spy__bar--active {
+  width: 36px;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.scroll-spy__tip {
+  position: absolute;
+  right: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%) translateX(4px);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: var(--surface-tip);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.scroll-spy__bar:hover .scroll-spy__tip,
+.scroll-spy__bar:focus-visible .scroll-spy__tip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* Features */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.feature-block {
+  padding: 28px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.feature-block__title {
+  margin: 0 0 16px;
+  font-size: 1.05rem;
+  color: var(--accent);
+}
+
+.feature-block__list li {
+  position: relative;
+  padding-left: 18px;
+  margin-bottom: 10px;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+}
+
+.feature-block__list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gradient);
+}
+
+/* Table */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.compare-table th,
+.compare-table td {
+  padding: 16px 20px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.compare-table thead th {
+  background: var(--compare-head-bg);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.compare-table tbody th {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.compare-table tbody tr:last-child th,
+.compare-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.compare-table__highlight {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Steps */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.step {
+  padding: 28px 24px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.step__n {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 2rem;
+  font-weight: 900;
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  opacity: 0.85;
+}
+
+.step__title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.step__desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+/* Contact */
+.contact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 960px;
+  margin: 0 auto 32px;
+}
+
+.contact-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 28px 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.contact-card__media {
+  width: 148px;
+  height: 148px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.contact-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.contact-card__title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.contact-card__hint {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.contact-email {
+  text-align: center;
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.contact-email__label {
+  color: var(--text-dim);
+}
+
+.contact-email__link {
+  color: var(--accent);
+  margin-right: 12px;
+}
+
+.contact-email__link:hover {
+  text-decoration: underline;
+}
+
+.contact-email__copy {
+  font-size: 0.85rem;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.contact-email__copy:hover {
+  border-color: var(--border-strong);
+  color: var(--accent);
+}
+
+:root[data-theme="dark"] .contact-card__media {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+/* CTA */
+.cta {
+  padding: 80px 0 100px;
+}
+
+.cta__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 48px 56px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+  background:
+    radial-gradient(ellipse 80% 120% at 100% 0%, var(--cta-bg-a), transparent),
+    radial-gradient(ellipse 60% 80% at 0% 100%, var(--cta-bg-b), transparent),
+    var(--bg-elevated);
+  box-shadow: var(--shadow);
+}
+
+.cta__title {
+  margin: 0 0 10px;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 800;
+}
+
+.cta__desc {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.cta__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Footer */
+.footer {
+  padding: 40px 0 48px;
+  border-top: 1px solid var(--border);
+}
+
+.footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+}
+
+.footer__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.footer__tagline {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.footer__links {
+  display: flex;
+  gap: 20px;
+}
+
+.footer__links a {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+
+.footer__links a:hover {
+  color: var(--accent);
+}
+
+.footer__copy {
+  width: 100%;
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.footer__copy a {
+  color: var(--text-muted);
+}
+
+.footer__copy a:hover {
+  color: var(--accent);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .hero__grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .hero__visual {
+    order: -1;
+  }
+
+  .hero__float--a {
+    left: 8px;
+  }
+
+  .hero__float--b {
+    right: 8px;
+  }
+
+  .cards--4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cta__inner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 36px 32px;
+  }
+
+  .contact-grid {
+    grid-template-columns: 1fr;
+    max-width: 320px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --container: calc(100% - 32px);
+  }
+
+  .header__nav {
+    position: fixed;
+    inset: var(--header-h) 0 auto 0;
+    flex-direction: column;
+    padding: 24px;
+    gap: 20px;
+    background: var(--header-mobile-nav-bg);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    transform: translateY(-110%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.3s, opacity 0.3s;
+  }
+
+  .header__nav--open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .header__menu {
+    display: flex;
+  }
+
+  .header__actions .btn--ghost {
+    display: none;
+  }
+
+  .header__brand .brand {
+    gap: 8px;
+  }
+
+  .header__brand .brand__icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .header__brand .brand__wordmark {
+    height: 22px;
+    max-width: 140px;
+  }
+
+  .scenario-row {
+    grid-template-columns: 40px 1fr;
+    grid-template-rows: auto auto;
+  }
+
+  .scenario-row__arrow {
+    display: none;
+  }
+
+  .scenario-row__solution {
+    grid-column: 2;
+  }
+
+  .cards--4,
+  .feature-grid,
+  .steps {
+    grid-template-columns: 1fr;
+  }
+
+  .hero__float {
+    display: none;
+  }
+
+  .scroll-spy {
+    display: none;
+  }
+}
+</style>
+</head>
+<body>
+  <div class="page" id="page">
+    <div class="page__glow page__glow--a" aria-hidden="true"></div>
+    <div class="page__glow page__glow--b" aria-hidden="true"></div>
+    <div class="page__grid" aria-hidden="true"></div>
+    <div id="page-content">
+    <header class="header" id="site-header">
+      <div class="container header__inner">
+        <a class="header__brand" href="#top"><span class="brand" style="--brand-icon:32px;--brand-wordmark:28px"><img src="./assets/icon.png" alt="" class="brand__icon" width="32" height="32" decoding="async" /></span></a>
+        <nav class="header__nav" id="header-nav" aria-label="主导航">
+          <a href="#highlights" class="header__link">优势</a><a href="#scenarios" class="header__link">场景</a><a href="#showcase" class="header__link">界面</a><a href="#features" class="header__link">功能</a><a href="#compare" class="header__link">版本</a><a href="#workflow" class="header__link">上手</a><a href="#contact" class="header__link">联系</a>
+        </nav>
+        <div class="header__actions">
+          <button type="button" class="header__icon-btn" id="theme-toggle" aria-label="切换到深色主题">
+            <span id="theme-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1111.2 3a6.8 6.8 0 009.8 9.8z" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </button>
+          <button type="button" class="header__icon-btn header__lang-btn" id="lang-toggle" aria-label="切换为英文">EN</button>
+          <a class="btn btn--ghost btn--sm" href="https://github.com/FutureUniant/WorkShadow" target="_blank" rel="noreferrer"><svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.48 0-.24-.01-.87-.01-1.7-2.78.62-3.37-1.36-3.37-1.36-.45-1.18-1.12-1.5-1.12-1.5-.92-.64.07-.63.07-.63 1.02.07 1.55 1.06 1.55 1.06.9 1.56 2.36 1.11 2.94.85.09-.66.35-1.11.64-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.27 2.75 1.03A9.2 9.2 0 0112 6.84c.85 0 1.71.12 2.51.34 1.91-1.3 2.75-1.03 2.75-1.03.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.07.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.49A10.03 10.03 0 0022 12.26C22 6.58 17.52 2 12 2z"/></svg><span data-i18n="header.source">源码</span></a>
+          <a class="btn btn--primary btn--sm" href="https://github.com/FutureUniant/WorkShadow/releases" target="_blank" rel="noreferrer"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19h16" stroke-linecap="round"/></svg><span data-i18n="header.download">下载</span></a>
+          <button type="button" class="header__menu" id="menu-toggle" aria-label="打开菜单" aria-expanded="false"><span></span><span></span><span></span></button>
+        </div>
+      </div>
+    </header>
+
+    <nav class="scroll-spy" id="scroll-spy" aria-label="页面定位">
+      <ul class="scroll-spy__track">
+        <li><a href="#top" class="scroll-spy__bar" data-spy="top" aria-label="首页"><span class="scroll-spy__tip">首页</span></a></li><li><a href="#highlights" class="scroll-spy__bar" data-spy="highlights" aria-label="优势"><span class="scroll-spy__tip">优势</span></a></li><li><a href="#scenarios" class="scroll-spy__bar" data-spy="scenarios" aria-label="场景"><span class="scroll-spy__tip">场景</span></a></li><li><a href="#showcase" class="scroll-spy__bar" data-spy="showcase" aria-label="界面"><span class="scroll-spy__tip">界面</span></a></li><li><a href="#features" class="scroll-spy__bar" data-spy="features" aria-label="功能"><span class="scroll-spy__tip">功能</span></a></li><li><a href="#compare" class="scroll-spy__bar" data-spy="compare" aria-label="版本"><span class="scroll-spy__tip">版本</span></a></li><li><a href="#workflow" class="scroll-spy__bar" data-spy="workflow" aria-label="上手"><span class="scroll-spy__tip">上手</span></a></li><li><a href="#contact" class="scroll-spy__bar" data-spy="contact" aria-label="联系"><span class="scroll-spy__tip">联系</span></a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <section class="hero" id="top">
+        <div class="container hero__grid">
+          <div class="hero__copy">
+            <p class="hero__slogan" data-i18n="hero.slogan">如影随形</p>
+            <h1 class="hero__title"><span class="hero__title-text">WorkShadow</span></h1>
+            <p class="hero__tagline" data-i18n="hero.tagline">记你所做，懂你想要。</p>
+            <p class="hero__desc" data-i18n="hero.subtitle">本地优先的桌面工作日志 — 富文本记录、语义检索、工作台总结与问答；模型自配，数据留在本机。</p>
+            <div class="hero__cta">
+              <a class="btn btn--primary btn--lg" href="https://github.com/FutureUniant/WorkShadow/releases" target="_blank" rel="noreferrer"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19h16" stroke-linecap="round"/></svg><span data-i18n="hero.download">免费下载安装版</span></a>
+              <a class="btn btn--outline btn--lg" href="https://github.com/FutureUniant/WorkShadow" target="_blank" rel="noreferrer"><svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.48 0-.24-.01-.87-.01-1.7-2.78.62-3.37-1.36-3.37-1.36-.45-1.18-1.12-1.5-1.12-1.5-.92-.64.07-.63.07-.63 1.02.07 1.55 1.06 1.55 1.06.9 1.56 2.36 1.11 2.94.85.09-.66.35-1.11.64-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.27 2.75 1.03A9.2 9.2 0 0112 6.84c.85 0 1.71.12 2.51.34 1.91-1.3 2.75-1.03 2.75-1.03.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.07.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.49A10.03 10.03 0 0022 12.26C22 6.58 17.52 2 12 2z"/></svg><span data-i18n="hero.github">在 GitHub 查看</span></a>
+            </div>
+            <ul class="hero__badges" id="hero-badges"><li>数据留在本机</li><li>智能补全</li><li>语义检索</li><li>工作台总结 / 问答</li><li>AGPL-3.0 开源</li></ul>
+          </div>
+          <div class="hero__visual">
+            <div class="hero__frame">
+              <div class="hero__frame-bar"><span></span><span></span><span></span></div>
+              <img src="./assets/home.png" alt="WorkShadow 主界面" class="hero__shot" width="900" height="560" loading="eager" data-i18n-alt="hero.shotAlt" />
+            </div>
+            <div class="hero__float hero__float--a"><div class="hero__float-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3" stroke-linecap="round"/></svg></div><div><strong>语义检索</strong><span>意思相近也能找到</span></div></div><div class="hero__float hero__float--b"><div class="hero__float-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 20h9" stroke-linecap="round"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><strong>智能补全</strong><span>写到一半，帮你接上</span></div></div><div class="hero__float hero__float--c"><div class="hero__float-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" stroke-linecap="round"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" opacity="0.35"/></svg></div><div><strong>日志总结</strong><span>日报 / 周报一键草稿</span></div></div><div class="hero__float hero__float--d"><div class="hero__float-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><strong>日志问答</strong><span>向历史记录提问</span></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="highlights">
+        <div class="container">
+          <header class="section__head">
+            <p class="section__eyebrow" data-i18n="highlights.eyebrow">核心优势</p>
+            <h2 class="section__title" data-i18n="highlights.title">写得顺、找得快、总结省力</h2>
+            <p class="section__desc" data-i18n="highlights.desc">不是替代 Word 或 Notion 的通用编辑器，而是面向持续记录、回顾与汇报的工作日志伴侣。</p>
+          </header>
+          <div class="cards cards--4" id="highlights-cards"><article class="card card--glow"><div class="card__icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3z"/><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h3 class="card__title">数据在本地</h3><p class="card__desc">日志、记忆与设置落盘在你指定的目录，不绑定云端笔记平台。</p></article><article class="card card--glow"><div class="card__icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3" stroke-linecap="round"/></svg></div><h3 class="card__title">找得快</h3><p class="card__desc">关键词 + 语义检索，用一句话找回几个月前的细节与决策背景。</p></article><article class="card card--glow"><div class="card__icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" stroke-linecap="round"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" opacity="0.35"/></svg></div><h3 class="card__title">总结省力</h3><p class="card__desc">勾选多篇日志，一键生成日报、周报、邮件与阶段汇报草稿。</p></article><article class="card card--glow"><div class="card__icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2" stroke-linecap="round"/></svg></div><h3 class="card__title">模型自配</h3><p class="card__desc">大语言、多模态与嵌入模型均由你在设置中接入，能力由你掌控。</p></article></div>
+        </div>
+      </section>
+
+      <section class="section section--alt" id="scenarios">
+        <div class="container">
+          <header class="section__head">
+            <p class="section__eyebrow" data-i18n="scenarios.eyebrow">适用场景</p>
+            <h2 class="section__title" data-i18n="scenarios.title">相比常见笔记，WorkShadow 更适合什么？</h2>
+          </header>
+          <div class="scenario-list" id="scenario-list"><div class="scenario-row"><span class="scenario-row__index">01</span><div class="scenario-row__pain">普通笔记「能写难找」</div><div class="scenario-row__arrow" aria-hidden="true">→</div><div class="scenario-row__solution">关键词 + 语义检索，自然语言找回相关片段</div></div><div class="scenario-row"><span class="scenario-row__index">02</span><div class="scenario-row__pain">写日报周报要翻很多文件</div><div class="scenario-row__arrow" aria-hidden="true">→</div><div class="scenario-row__solution">工作台 · 日志总结，按你的口径生成各类书面草稿</div></div><div class="scenario-row"><span class="scenario-row__index">03</span><div class="scenario-row__pain">「当时为什么这么决定？」</div><div class="scenario-row__arrow" aria-hidden="true">→</div><div class="scenario-row__solution">工作台 · 日志问答，向历史日志提问并标注来源</div></div><div class="scenario-row"><span class="scenario-row__index">04</span><div class="scenario-row__pain">担心内容上云、被平台绑定</div><div class="scenario-row__arrow" aria-hidden="true">→</div><div class="scenario-row__solution">本地优先，AI 仅在你配置模型时才联网调用</div></div><div class="scenario-row"><span class="scenario-row__index">05</span><div class="scenario-row__pain">需要备份与迁移</div><div class="scenario-row__arrow" aria-hidden="true">→</div><div class="scenario-row__solution">支持 .ws 整包备份与合并导入</div></div></div>
+        </div>
+      </section>
+
+      <section class="section" id="showcase">
+        <div class="container showcase">
+          <header class="section__head section__head--left">
+            <p class="section__eyebrow" data-i18n="showcase.eyebrow">产品界面</p>
+            <h2 class="section__title" data-i18n="showcase.title">左侧组织日志，右侧沉浸写作</h2>
+            <p class="section__desc" data-i18n="showcase.desc">树形管理、富文本编辑、本地搜索与工作台 AI 辅助，在同一桌面窗口中连贯完成。</p>
+          </header>
+          <div class="showcase__panel">
+            <img src="./assets/home.png" alt="WorkShadow 主界面截图" class="showcase__img" loading="lazy" data-i18n-alt="showcase.shotAlt" />
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--alt" id="features">
+        <div class="container">
+          <header class="section__head">
+            <p class="section__eyebrow" data-i18n="features.eyebrow">主要功能</p>
+            <h2 class="section__title" data-i18n="features.title">从记录到检索，从总结到备份</h2>
+          </header>
+          <div class="feature-grid" id="feature-grid"><article class="feature-block"><h3 class="feature-block__title">日志组织与编辑</h3><ul class="feature-block__list"><li>富文本：标题、列表、任务、表格、代码块、公式与多媒体</li><li>批量移动 / 删除，拖拽整理，Markdown 导入</li><li>安装版：智能补全、图片粘贴与拖拽（本地学习，不上传正文）</li></ul></article><article class="feature-block"><h3 class="feature-block__title">搜索与理解</h3><ul class="feature-block__list"><li>本地关键词搜索，多处命中片段一键跳转</li><li>配置嵌入模型后支持语义检索，未配置时自动降级</li></ul></article><article class="feature-block"><h3 class="feature-block__title">工作台</h3><ul class="feature-block__list"><li>记忆：跨日志的约定与术语，供总结与问答参考</li><li>日志总结：日报 / 周报 / 月报 / 邮件 / 项目报告等</li><li>日志问答：检索相关片段归纳作答，标注参考来源</li></ul></article><article class="feature-block"><h3 class="feature-block__title">设置与数据</h3><ul class="feature-block__list"><li>浅色 / 深色主题，中 / 英文，界面缩放可调</li><li>自定义日志目录，.ws 导出与合并恢复</li><li>分别配置 LLM、多模态与嵌入模型，支持连接测试</li></ul></article></div>
+        </div>
+      </section>
+
+      <section class="section" id="compare">
+        <div class="container">
+          <header class="section__head">
+            <p class="section__eyebrow" data-i18n="comparison.eyebrow">安装版 vs 开发版</p>
+            <h2 class="section__title" data-i18n="comparison.title">核心功能相同，安装版体验更完整</h2>
+            <p class="section__desc" data-i18n="comparison.desc">两者均免费、数据均在本地。日常使用推荐安装版；开发调试可选用开发版或源码启动。</p>
+          </header>
+          <div class="table-wrap">
+            <table class="compare-table">
+              <thead><tr><th scope="col">对比项</th><th scope="col">开发版</th><th scope="col">安装版</th></tr></thead>
+              <tbody id="compare-body"><tr><th scope="row">费用</th><td>免费</td><td class="compare-table__highlight">免费</td></tr><tr><th scope="row">核心功能</th><td>✓</td><td class="">✓</td></tr><tr><th scope="row">编辑性能优化</th><td>—</td><td class="compare-table__highlight">✓ 更丝滑流畅</td></tr><tr><th scope="row">UI 交互优化</th><td>—</td><td class="">✓</td></tr><tr><th scope="row">图像复制、拖拽</th><td>—</td><td class="">✓</td></tr><tr><th scope="row">智能补全</th><td>—</td><td class="compare-table__highlight">✓ 本地学习</td></tr><tr><th scope="row">新手引导</th><td>—</td><td class="">✓</td></tr><tr><th scope="row">数据在本地</th><td>✓</td><td class="">✓</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--alt" id="workflow">
+        <div class="container">
+          <header class="section__head">
+            <p class="section__eyebrow" data-i18n="workflow.eyebrow">快速上手</p>
+            <h2 class="section__title" data-i18n="workflow.title">四步开始你的本地工作日志</h2>
+          </header>
+          <ol class="steps" id="workflow-steps"><li class="step"><span class="step__n">01</span><h3 class="step__title">下载安装</h3><p class="step__desc">从 Releases 获取安装版或开发版安装包。</p></li><li class="step"><span class="step__n">02</span><h3 class="step__title">完成设置</h3><p class="step__desc">选择主题、语言、日志目录；按需配置模型并测试连接。</p></li><li class="step"><span class="step__n">03</span><h3 class="step__title">持续记录</h3><p class="step__desc">左侧组织日志，右侧富文本写作，Ctrl+S 保存并更新索引。</p></li><li class="step"><span class="step__n">04</span><h3 class="step__title">回顾与汇报</h3><p class="step__desc">搜索找回细节，在工作台总结、问答或导出 .ws 备份。</p></li></ol>
+        </div>
+      </section>
+
+      <section class="cta">
+        <div class="container cta__inner">
+          <div class="cta__copy">
+            <h2 class="cta__title" data-i18n="cta.title">开始记录，让影子跟上你的每一步</h2>
+            <p class="cta__desc" data-i18n="cta.desc">如影随形，记你所做，懂你想要。 内容在你手里，能力由你配置。</p>
+          </div>
+          <div class="cta__actions">
+            <a class="btn btn--primary btn--lg" href="https://github.com/FutureUniant/WorkShadow/releases" target="_blank" rel="noreferrer"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19h16" stroke-linecap="round"/></svg><span data-i18n="cta.download">前往 Releases 下载</span></a>
+            <a class="btn btn--ghost btn--lg" href="https://github.com/FutureUniant/WorkShadow/blob/main/README.md" target="_blank" rel="noreferrer"><span data-i18n="cta.readme">阅读使用说明</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--alt" id="contact">
+        <div class="container">
+          <header class="section__head">
+            <p class="section__eyebrow" data-i18n="contact.eyebrow">联系我们</p>
+            <h2 class="section__title" data-i18n="contact.title">反馈、交流与支持</h2>
+            <p class="section__desc" data-i18n="contact.desc">使用中遇到问题或有建议，欢迎扫码添加管理员微信、加入 QQ 群或关注公众号；也可通过邮箱联系。</p>
+          </header>
+          <div class="contact-grid" role="list">
+            <article class="contact-card" role="listitem">
+              <div class="contact-card__media"><img src="./contact/wechat.jpg" width="148" height="148" alt="管理员微信" loading="lazy" data-i18n-alt="contact.wechatAdmin" /></div>
+              <h3 class="contact-card__title" data-i18n="contact.wechatAdmin">管理员微信</h3>
+              <p class="contact-card__hint" data-i18n="contact.wechatAdminHint">扫码添加，便于反馈问题与使用交流。</p>
+            </article>
+            <article class="contact-card" role="listitem">
+              <div class="contact-card__media"><img src="./contact/wechat_public.jpg" width="148" height="148" alt="微信公众号" loading="lazy" data-i18n-alt="contact.wechatPublic" /></div>
+              <h3 class="contact-card__title" data-i18n="contact.wechatPublic">微信公众号</h3>
+              <p class="contact-card__hint" data-i18n="contact.wechatPublicHint">扫码关注，获取更新与相关资讯。</p>
+            </article>
+            <article class="contact-card" role="listitem">
+              <div class="contact-card__media"><img src="./docs/qq_group_square.jpg" width="148" height="148" alt="QQ 交流群" loading="lazy" data-i18n-alt="contact.qqGroup" /></div>
+              <h3 class="contact-card__title" data-i18n="contact.qqGroup">QQ 交流群</h3>
+              <p class="contact-card__hint" data-i18n="contact.qqGroupHint">扫码加入，与其他用户交流使用经验。</p>
+            </article>
+          </div>
+          <p class="contact-email">
+            <span class="contact-email__label" data-i18n="contact.emailLabel">邮箱</span>：
+            <a class="contact-email__link" href="mailto:feiyangtech@qq.com">feiyangtech@qq.com</a>
+            <button type="button" class="contact-email__copy" id="copy-email" data-i18n="contact.copyEmail">复制</button>
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer__inner">
+        <div class="footer__brand"><span class="brand" style="--brand-icon:36px;--brand-wordmark:28px"><img src="./assets/icon.png" alt="" class="brand__icon" width="36" height="36" decoding="async" /></span><span class="footer__tagline" data-i18n="footer.tagline">如影随形 · 本地优先桌面工作日志</span></div>
+        <nav class="footer__links" aria-label="页脚链接">
+          <a href="https://github.com/FutureUniant/WorkShadow" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://github.com/FutureUniant/WorkShadow/releases" target="_blank" rel="noreferrer">Releases</a>
+          <a href="https://github.com/FutureUniant/WorkShadow/blob/main/LICENSE" target="_blank" rel="noreferrer">AGPL-3.0</a>
+        </nav>
+        <p class="footer__copy">© <span id="year"></span> <a href="https://github.com/FutureUniant/WorkShadow" target="_blank" rel="noreferrer">FutureUniant/WorkShadow</a> <span data-i18n="footer.copySuffix">· 开源项目官网（非官方附属站点，资源引用自上游仓库）</span></p>
+      </div>
+    </footer></div>
+  </div>
+  <script id="copy-data" type="application/json">{"zh":{"meta":{"title":"WorkShadow · 如影随形","description":"WorkShadow — 如影随形 · 本地优先桌面工作日志：富文本记录、语义检索、工作台总结与问答。数据留在本机，模型自配。"},"nav":{"top":"首页","highlights":"优势","scenarios":"场景","showcase":"界面","features":"功能","compare":"版本","workflow":"上手","contact":"联系"},"header":{"navAria":"主导航","source":"源码","download":"下载","openMenu":"打开菜单","closeMenu":"关闭菜单","themeToLight":"切换到浅色主题","themeToDark":"切换到深色主题","langSwitch":"切换为英文"},"hero":{"slogan":"如影随形","tagline":"记你所做，懂你想要。","subtitle":"本地优先的桌面工作日志 — 富文本记录、语义检索、工作台总结与问答；模型自配，数据留在本机。","download":"免费下载安装版","github":"在 GitHub 查看","shotAlt":"WorkShadow 主界面","badges":["数据留在本机","智能补全","语义检索","工作台总结 / 问答","AGPL-3.0 开源"],"floats":{"search":{"title":"语义检索","desc":"意思相近也能找到"},"complete":{"title":"智能补全","desc":"写到一半，帮你接上"},"spark":{"title":"日志总结","desc":"日报 / 周报一键草稿"},"chat":{"title":"日志问答","desc":"向历史记录提问"}}},"highlights":{"eyebrow":"核心优势","title":"写得顺、找得快、总结省力","desc":"不是替代 Word 或 Notion 的通用编辑器，而是面向持续记录、回顾与汇报的工作日志伴侣。","items":[{"icon":"shield","title":"数据在本地","desc":"日志、记忆与设置落盘在你指定的目录，不绑定云端笔记平台。"},{"icon":"search","title":"找得快","desc":"关键词 + 语义检索，用一句话找回几个月前的细节与决策背景。"},{"icon":"spark","title":"总结省力","desc":"勾选多篇日志，一键生成日报、周报、邮件与阶段汇报草稿。"},{"icon":"cpu","title":"模型自配","desc":"大语言、多模态与嵌入模型均由你在设置中接入，能力由你掌控。"}]},"scenarios":{"eyebrow":"适用场景","title":"相比常见笔记，WorkShadow 更适合什么？","rows":[{"pain":"普通笔记「能写难找」","solution":"关键词 + 语义检索，自然语言找回相关片段"},{"pain":"写日报周报要翻很多文件","solution":"工作台 · 日志总结，按你的口径生成各类书面草稿"},{"pain":"「当时为什么这么决定？」","solution":"工作台 · 日志问答，向历史日志提问并标注来源"},{"pain":"担心内容上云、被平台绑定","solution":"本地优先，AI 仅在你配置模型时才联网调用"},{"pain":"需要备份与迁移","solution":"支持 .ws 整包备份与合并导入"}]},"showcase":{"eyebrow":"产品界面","title":"左侧组织日志，右侧沉浸写作","desc":"树形管理、富文本编辑、本地搜索与工作台 AI 辅助，在同一桌面窗口中连贯完成。","shotAlt":"WorkShadow 主界面截图"},"features":{"eyebrow":"主要功能","title":"从记录到检索，从总结到备份","blocks":[{"category":"日志组织与编辑","items":["富文本：标题、列表、任务、表格、代码块、公式与多媒体","批量移动 / 删除，拖拽整理，Markdown 导入","安装版：智能补全、图片粘贴与拖拽（本地学习，不上传正文）"]},{"category":"搜索与理解","items":["本地关键词搜索，多处命中片段一键跳转","配置嵌入模型后支持语义检索，未配置时自动降级"]},{"category":"工作台","items":["记忆：跨日志的约定与术语，供总结与问答参考","日志总结：日报 / 周报 / 月报 / 邮件 / 项目报告等","日志问答：检索相关片段归纳作答，标注参考来源"]},{"category":"设置与数据","items":["浅色 / 深色主题，中 / 英文，界面缩放可调","自定义日志目录，.ws 导出与合并恢复","分别配置 LLM、多模态与嵌入模型，支持连接测试"]}]},"comparison":{"eyebrow":"安装版 vs 开发版","title":"核心功能相同，安装版体验更完整","desc":"两者均免费、数据均在本地。日常使用推荐安装版；开发调试可选用开发版或源码启动。","headers":["对比项","开发版","安装版"],"rows":[["费用","免费","免费"],["核心功能","✓","✓"],["编辑性能优化","—","✓ 更丝滑流畅"],["UI 交互优化","—","✓"],["图像复制、拖拽","—","✓"],["智能补全","—","✓ 本地学习"],["新手引导","—","✓"],["数据在本地","✓","✓"]]},"workflow":{"eyebrow":"快速上手","title":"四步开始你的本地工作日志","steps":[{"n":"01","title":"下载安装","desc":"从 Releases 获取安装版或开发版安装包。"},{"n":"02","title":"完成设置","desc":"选择主题、语言、日志目录；按需配置模型并测试连接。"},{"n":"03","title":"持续记录","desc":"左侧组织日志，右侧富文本写作，Ctrl+S 保存并更新索引。"},{"n":"04","title":"回顾与汇报","desc":"搜索找回细节，在工作台总结、问答或导出 .ws 备份。"}]},"contact":{"eyebrow":"联系我们","title":"反馈、交流与支持","desc":"使用中遇到问题或有建议，欢迎扫码添加管理员微信、加入 QQ 群或关注公众号；也可通过邮箱联系。","wechatAdmin":"管理员微信","wechatAdminHint":"扫码添加，便于反馈问题与使用交流。","wechatPublic":"微信公众号","wechatPublicHint":"扫码关注，获取更新与相关资讯。","qqGroup":"QQ 交流群","qqGroupHint":"扫码加入，与其他用户交流使用经验。","emailLabel":"邮箱","copyEmail":"复制"},"cta":{"title":"开始记录，让影子跟上你的每一步","desc":"如影随形，记你所做，懂你想要。 内容在你手里，能力由你配置。","download":"前往 Releases 下载","readme":"阅读使用说明"},"footer":{"tagline":"如影随形 · 本地优先桌面工作日志","linksAria":"页脚链接","copySuffix":"· 开源项目官网（非官方附属站点，资源引用自上游仓库）"},"scrollSpy":{"aria":"页面定位"}},"en":{"meta":{"title":"WorkShadow · Always With You","description":"WorkShadow — local-first desktop work journal: rich-text logging, semantic search, and AI-assisted summaries & Q&A. Your data stays on your machine."},"nav":{"top":"Home","highlights":"Benefits","scenarios":"Use Cases","showcase":"UI","features":"Features","compare":"Editions","workflow":"Start","contact":"Contact"},"header":{"navAria":"Main navigation","source":"Source","download":"Download","openMenu":"Open menu","closeMenu":"Close menu","themeToLight":"Switch to light theme","themeToDark":"Switch to dark theme","langSwitch":"Switch to Chinese"},"hero":{"slogan":"Always With You","tagline":"Record what you do. Understand what you need.","subtitle":"A local-first desktop work journal — rich-text notes, semantic search, and workspace summaries & Q&A. Bring your own models; keep data on your machine.","download":"Download installer","github":"View on GitHub","shotAlt":"WorkShadow main window","badges":["Data stays local","Smart completion","Semantic search","Summaries & Q&A","AGPL-3.0 open source"],"floats":{"search":{"title":"Semantic search","desc":"Find by meaning, not just keywords"},"complete":{"title":"Smart completion","desc":"Pick up where you left off"},"spark":{"title":"Log summaries","desc":"Daily & weekly drafts in one click"},"chat":{"title":"Log Q&A","desc":"Ask your past notes"}}},"highlights":{"eyebrow":"Core benefits","title":"Write smoothly, find fast, summarize with ease","desc":"Not a generic editor to replace Word or Notion — a work-journal companion for ongoing capture, review, and reporting.","items":[{"icon":"shield","title":"Local by default","desc":"Logs, memory, and settings live in folders you choose — no cloud note platform lock-in."},{"icon":"search","title":"Find fast","desc":"Keyword + semantic search — recover details and decision context from months ago in one query."},{"icon":"spark","title":"Easier summaries","desc":"Select multiple logs and generate daily, weekly, email, or progress report drafts in one go."},{"icon":"cpu","title":"Your models","desc":"Connect LLM, multimodal, and embedding models in settings — capability is under your control."}]},"scenarios":{"eyebrow":"Use cases","title":"Where WorkShadow fits better than typical notes","rows":[{"pain":"Notes are easy to write, hard to find","solution":"Keyword + semantic search in natural language"},{"pain":"Daily/weekly reports mean digging through files","solution":"Workspace summaries tailored to your tone"},{"pain":"“Why did we decide that back then?”","solution":"Log Q&A over history with cited sources"},{"pain":"Worried about cloud lock-in","solution":"Local-first; AI calls only when you configure models"},{"pain":"Need backup and migration","solution":".ws full backup and merge import"}]},"showcase":{"eyebrow":"Product UI","title":"Organize on the left, write on the right","desc":"Tree management, rich-text editing, local search, and workspace AI — in one desktop window.","shotAlt":"WorkShadow main UI screenshot"},"features":{"eyebrow":"Features","title":"From capture to search, summary to backup","blocks":[{"category":"Organization & editing","items":["Rich text: headings, lists, tasks, tables, code, math, and media","Batch move/delete, drag to reorganize, Markdown import","Installer: smart completion, paste & drag images (learns locally, no body upload)"]},{"category":"Search & understanding","items":["Local keyword search with jump-to-hit snippets","Semantic search when embedding model is configured; graceful fallback otherwise"]},{"category":"Workspace","items":["Memory: cross-log conventions and terms for summaries & Q&A","Summaries: daily / weekly / monthly / email / project reports","Q&A: retrieve relevant snippets, answer with references"]},{"category":"Settings & data","items":["Light / dark theme, Chinese / English, adjustable UI scale","Custom log directory, .ws export and merge restore","Separate LLM, multimodal, and embedding configs with connection test"]}]},"comparison":{"eyebrow":"Installer vs dev build","title":"Same core features; installer is more polished","desc":"Both are free with local data. Daily use: installer. Hacking: dev build or run from source.","headers":["Item","Dev build","Installer"],"rows":[["Price","Free","Free"],["Core features","✓","✓"],["Editing performance","—","✓ Smoother"],["UI polish","—","✓"],["Image paste & drag","—","✓"],["Smart completion","—","✓ Local learning"],["Onboarding","—","✓"],["Local data","✓","✓"]]},"workflow":{"eyebrow":"Quick start","title":"Four steps to your local work journal","steps":[{"n":"01","title":"Download","desc":"Get the installer or dev build from Releases."},{"n":"02","title":"Set up","desc":"Pick theme, language, log folder; configure models and test connections."},{"n":"03","title":"Keep writing","desc":"Organize logs on the left, write on the right; Ctrl+S saves and reindexes."},{"n":"04","title":"Review & report","desc":"Search, summarize, Q&A, or export a .ws backup."}]},"contact":{"eyebrow":"Contact us","title":"Feedback, community & support","desc":"Questions or suggestions? Scan to add the admin on WeChat, join the QQ group, or follow our official account—or reach us by email.","wechatAdmin":"Admin WeChat","wechatAdminHint":"Scan to add — for feedback and usage questions.","wechatPublic":"WeChat official account","wechatPublicHint":"Scan to follow for updates and news.","qqGroup":"QQ group","qqGroupHint":"Scan to join and share tips with other users.","emailLabel":"Email","copyEmail":"Copy"},"cta":{"title":"Start logging — let your shadow keep pace","desc":"Always with you: record what you do, understand what you need. Your content, your models.","download":"Download from Releases","readme":"Read the docs"},"footer":{"tagline":"Always with you · Local-first desktop work journal","linksAria":"Footer links","copySuffix":"· Community site (unofficial; assets from upstream repo)"},"scrollSpy":{"aria":"Section navigation"}},"navIds":["top","highlights","scenarios","showcase","features","compare","workflow","contact"],"headerNavIds":["highlights","scenarios","showcase","features","compare","workflow","contact"],"floatKeys":[["search","hero__float--a","search"],["complete","hero__float--b","pen"],["spark","hero__float--c","spark"],["chat","hero__float--d","chat"]],"icons":["shield","search","spark","cpu","github","download","arrow","pen","chat","sun","moon"]}</script>
+  <script>
+(function () {
+  var DATA = JSON.parse(document.getElementById("copy-data").textContent);
+  var COPY = DATA.zh && DATA.en ? { zh: DATA.zh, en: DATA.en } : DATA;
+  var NAV_IDS = DATA.navIds;
+  var HEADER_NAV_IDS = DATA.headerNavIds;
+  var FLOAT_KEYS = DATA.floatKeys;
+  var LINKS = {
+    github: "https://github.com/FutureUniant/WorkShadow",
+    releases: "https://github.com/FutureUniant/WorkShadow/releases",
+    license: "https://github.com/FutureUniant/WorkShadow/blob/main/LICENSE",
+    readme: "https://github.com/FutureUniant/WorkShadow/blob/main/README.md",
+  };
+  var CONTACT_EMAIL = "feiyangtech@qq.com";
+
+  var ICONS = {
+    shield:
+      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3z"/><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    search:
+      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3" stroke-linecap="round"/></svg>',
+    spark:
+      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" stroke-linecap="round"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" opacity="0.35"/></svg>',
+    cpu:
+      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2" stroke-linecap="round"/></svg>',
+    github:
+      '<svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.48 0-.24-.01-.87-.01-1.7-2.78.62-3.37-1.36-3.37-1.36-.45-1.18-1.12-1.5-1.12-1.5-.92-.64.07-.63.07-.63 1.02.07 1.55 1.06 1.55 1.06.9 1.56 2.36 1.11 2.94.85.09-.66.35-1.11.64-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.27 2.75 1.03A9.2 9.2 0 0112 6.84c.85 0 1.71.12 2.51.34 1.91-1.3 2.75-1.03 2.75-1.03.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.07.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.49A10.03 10.03 0 0022 12.26C22 6.58 17.52 2 12 2z"/></svg>',
+    download:
+      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19h16" stroke-linecap="round"/></svg>',
+    arrow:
+      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    pen:
+      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 20h9" stroke-linecap="round"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    chat:
+      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    sun:
+      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke-linecap="round"/></svg>',
+    moon:
+      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1111.2 3a6.8 6.8 0 009.8 9.8z" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  };
+
+  function detectLocale() {
+    var saved = localStorage.getItem("ws-locale");
+    if (saved === "zh" || saved === "en") return saved;
+    return navigator.language.toLowerCase().indexOf("zh") === 0 ? "zh" : "en";
+  }
+
+  function detectTheme() {
+    var saved = localStorage.getItem("ws-theme");
+    if (saved === "dark" || saved === "light") return saved;
+    return "light";
+  }
+
+  function get(obj, path) {
+    return path.split(".").reduce(function (o, k) {
+      return o && o[k];
+    }, obj);
+  }
+
+  function isHighlightCell(value) {
+    return value !== "—" && value !== "✓" && value !== "-";
+  }
+
+  var locale = document.documentElement.dataset.locale || detectLocale();
+  var theme = document.documentElement.dataset.theme || detectTheme();
+
+  function applyTheme(next) {
+    theme = next;
+    document.documentElement.dataset.theme = theme;
+    document.querySelector('meta[name="theme-color"]').setAttribute(
+      "content",
+      theme === "dark" ? "#070b14" : "#f4f7fb",
+    );
+    localStorage.setItem("ws-theme", theme);
+    var btn = document.getElementById("theme-toggle");
+    var icon = document.getElementById("theme-icon");
+    var t = COPY[locale];
+    if (btn && icon && t) {
+      btn.setAttribute("aria-label", theme === "dark" ? t.header.themeToLight : t.header.themeToDark);
+      icon.innerHTML = theme === "dark" ? ICONS.sun : ICONS.moon;
+    }
+  }
+
+  function applyLocale(next) {
+    locale = next;
+    document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
+    document.documentElement.dataset.locale = locale;
+    localStorage.setItem("ws-locale", locale);
+    var t = COPY[locale];
+    document.title = t.meta.title;
+    document.querySelector('meta[name="description"]').setAttribute("content", t.meta.description);
+
+    document.querySelectorAll("[data-i18n]").forEach(function (el) {
+      var val = get(t, el.getAttribute("data-i18n"));
+      if (val != null) el.textContent = val;
+    });
+    document.querySelectorAll("[data-i18n-alt]").forEach(function (el) {
+      var val = get(t, el.getAttribute("data-i18n-alt"));
+      if (val != null) el.setAttribute("alt", val);
+    });
+
+    var langBtn = document.getElementById("lang-toggle");
+    if (langBtn) {
+      langBtn.textContent = locale === "zh" ? "EN" : "中";
+      langBtn.setAttribute("aria-label", t.header.langSwitch);
+    }
+
+    HEADER_NAV_IDS.forEach(function (id, i) {
+      var link = document.querySelector("#header-nav .header__link:nth-child(" + (i + 1) + ")");
+      if (link) link.textContent = t.nav[id];
+    });
+
+    document.querySelectorAll(".scroll-spy__bar").forEach(function (bar) {
+      var id = bar.getAttribute("data-spy");
+      bar.setAttribute("aria-label", t.nav[id]);
+      var tip = bar.querySelector(".scroll-spy__tip");
+      if (tip) tip.textContent = t.nav[id];
+    });
+
+    var badges = document.getElementById("hero-badges");
+    if (badges) badges.innerHTML = t.hero.badges.map(function (b) {
+      return "<li>" + b + "</li>";
+    }).join("");
+
+    var floats = document.querySelectorAll(".hero__float");
+    FLOAT_KEYS.forEach(function (entry, i) {
+      var key = entry[0];
+      var f = t.hero.floats[key];
+      var el = floats[i];
+      if (!el || !f) return;
+      el.querySelector("strong").textContent = f.title;
+      el.querySelector("span").textContent = f.desc;
+    });
+
+    var highlights = document.getElementById("highlights-cards");
+    if (highlights) {
+      highlights.innerHTML = t.highlights.items
+        .map(function (item) {
+          return (
+            '<article class="card card--glow"><div class="card__icon">' +
+            ICONS[item.icon] +
+            '</div><h3 class="card__title">' +
+            item.title +
+            '</h3><p class="card__desc">' +
+            item.desc +
+            "</p></article>"
+          );
+        })
+        .join("");
+    }
+
+    var scenarios = document.getElementById("scenario-list");
+    if (scenarios) {
+      scenarios.innerHTML = t.scenarios.rows
+        .map(function (row, i) {
+          return (
+            '<div class="scenario-row"><span class="scenario-row__index">' +
+            String(i + 1).padStart(2, "0") +
+            '</span><div class="scenario-row__pain">' +
+            row.pain +
+            '</div><div class="scenario-row__arrow" aria-hidden="true">→</div><div class="scenario-row__solution">' +
+            row.solution +
+            "</div></div>"
+          );
+        })
+        .join("");
+    }
+
+    var features = document.getElementById("feature-grid");
+    if (features) {
+      features.innerHTML = t.features.blocks
+        .map(function (block) {
+          return (
+            '<article class="feature-block"><h3 class="feature-block__title">' +
+            block.category +
+            '</h3><ul class="feature-block__list">' +
+            block.items.map(function (item) {
+              return "<li>" + item + "</li>";
+            }).join("") +
+            "</ul></article>"
+          );
+        })
+        .join("");
+    }
+
+    var compare = document.getElementById("compare-body");
+    if (compare) {
+      compare.innerHTML = t.comparison.rows
+        .map(function (row) {
+          return (
+            "<tr><th scope=\"row\">" +
+            row[0] +
+            "</th><td>" +
+            row[1] +
+            '</td><td class="' +
+            (isHighlightCell(row[2]) ? "compare-table__highlight" : "") +
+            '">' +
+            row[2] +
+            "</td></tr>"
+          );
+        })
+        .join("");
+      var thead = document.querySelector(".compare-table thead tr");
+      if (thead) {
+        thead.innerHTML = t.comparison.headers.map(function (h) {
+          return '<th scope="col">' + h + "</th>";
+        }).join("");
       }
-      html[data-boot-theme="dark"],
-      html[data-boot-theme="dark"] body {
-        background: #0f172a;
-      }
-      #workshadow-boot {
-        position: fixed;
-        inset: 0;
-        z-index: 99999;
-        background: #f7f8fb;
-        pointer-events: none;
-      }
-      html[data-boot-theme="dark"] #workshadow-boot {
-        background: #0f172a;
-      }
-      /* 转圈：视口垂直正中 */
-      .workshadow-boot__spinner {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 26px;
-        height: 26px;
-        margin: 0;
-        transform: translate(-50%, -50%);
-        border: 2px solid #d9e0ea;
-        border-top-color: #2563eb;
-        border-radius: 50%;
-        animation: workshadow-boot-spin 0.7s linear infinite;
-      }
-      html[data-boot-theme="dark"] .workshadow-boot__spinner {
-        border-color: #334155;
-        border-top-color: #60a5fa;
-      }
-      /* 图标：比正中略靠上（在转圈上方） */
-      #workshadow-boot-logo {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 128px;
-        height: 128px;
-        object-fit: contain;
-        transform: translate(-50%, calc(-50% - 58px));
-      }
-      @keyframes workshadow-boot-spin {
-        to {
-          transform: translate(-50%, -50%) rotate(360deg);
-        }
-      }
-      html.workshadow-ready #workshadow-boot {
-        display: none;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="workshadow-boot" aria-live="polite" aria-busy="true">
-      <img
-        id="workshadow-boot-logo"
-        alt="WorkShadow"
-        width="128"
-        height="128"
-        decoding="sync"
-        fetchpriority="high"
-        src="__WORKSHADOW_BOOT_LIGHT_SRC__"
-      />
-      <div class="workshadow-boot__spinner" aria-hidden="true"></div>
-    </div>
-    <div id="root"></div>
-    <div id="workshadow-overlays"></div>
-    <script>
-      (function () {
-        var logo = window.__WORKSHADOW_BOOT_LOGO__;
-        var img = document.getElementById("workshadow-boot-logo");
-        if (img && logo) img.src = logo;
-      })();
-    </script>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    }
+
+    var steps = document.getElementById("workflow-steps");
+    if (steps) {
+      steps.innerHTML = t.workflow.steps
+        .map(function (step) {
+          return (
+            '<li class="step"><span class="step__n">' +
+            step.n +
+            '</span><h3 class="step__title">' +
+            step.title +
+            '</h3><p class="step__desc">' +
+            step.desc +
+            "</p></li>"
+          );
+        })
+        .join("");
+    }
+
+    var menuBtn = document.getElementById("menu-toggle");
+    if (menuBtn && menuBtn.getAttribute("aria-expanded") === "true") {
+      menuBtn.setAttribute("aria-label", t.header.closeMenu);
+    } else if (menuBtn) {
+      menuBtn.setAttribute("aria-label", t.header.openMenu);
+    }
+
+    applyTheme(theme);
+  }
+
+  document.getElementById("year").textContent = String(new Date().getFullYear());
+
+  applyLocale(locale);
+
+  document.getElementById("theme-toggle").addEventListener("click", function () {
+    applyTheme(theme === "dark" ? "light" : "dark");
+  });
+
+  document.getElementById("lang-toggle").addEventListener("click", function () {
+    applyLocale(locale === "zh" ? "en" : "zh");
+  });
+
+  var header = document.getElementById("site-header");
+  var nav = document.getElementById("header-nav");
+  var menuBtn = document.getElementById("menu-toggle");
+  var menuOpen = false;
+
+  function setMenuOpen(open) {
+    menuOpen = open;
+    nav.classList.toggle("header__nav--open", open);
+    menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    menuBtn.setAttribute("aria-label", COPY[locale].header[open ? "closeMenu" : "openMenu"]);
+    document.body.style.overflow = open ? "hidden" : "";
+  }
+
+  menuBtn.addEventListener("click", function () {
+    setMenuOpen(!menuOpen);
+  });
+
+  nav.querySelectorAll("a").forEach(function (a) {
+    a.addEventListener("click", function () {
+      setMenuOpen(false);
+    });
+  });
+
+  function onScrollHeader() {
+    header.classList.toggle("header--scrolled", window.scrollY > 24);
+  }
+  onScrollHeader();
+  window.addEventListener("scroll", onScrollHeader, { passive: true });
+
+  var scrollSpy = document.getElementById("scroll-spy");
+  function onScrollSpyVisible() {
+    scrollSpy.classList.toggle("scroll-spy--visible", window.scrollY > 320);
+  }
+  onScrollSpyVisible();
+  window.addEventListener("scroll", onScrollSpyVisible, { passive: true });
+
+  var sections = NAV_IDS.map(function (id) {
+    return document.getElementById(id);
+  }).filter(Boolean);
+
+  var observer = new IntersectionObserver(
+    function (entries) {
+      var visible = entries
+        .filter(function (e) {
+          return e.isIntersecting;
+        })
+        .sort(function (a, b) {
+          return b.intersectionRatio - a.intersectionRatio;
+        });
+      if (!visible[0]) return;
+      var id = visible[0].target.id;
+      document.querySelectorAll(".scroll-spy__bar").forEach(function (bar) {
+        var active = bar.getAttribute("data-spy") === id;
+        bar.classList.toggle("scroll-spy__bar--active", active);
+        if (active) bar.setAttribute("aria-current", "true");
+        else bar.removeAttribute("aria-current");
+      });
+    },
+    { rootMargin: "-40% 0px -45% 0px", threshold: [0, 0.15, 0.35, 0.55] },
+  );
+  sections.forEach(function (el) {
+    observer.observe(el);
+  });
+
+  document.getElementById("copy-email").addEventListener("click", function () {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(CONTACT_EMAIL);
+    }
+  });
+})();
+
+  </script>
+</body>
 </html>

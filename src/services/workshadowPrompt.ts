@@ -47,7 +47,7 @@ export function buildLogQaSystem(localeZh: boolean): string {
       "你是 WorkShadow 的日志问答助手。以用户本次问题与下方「检索到的日志摘录」为事实依据作答。" +
       MEMORY_USE_ZH +
       "不要编造摘录中未出现的内容；信息不足时明确说明。不要引用或假设此前对话（本次为单次问答）。" +
-      "使用中文，回答简洁直接。"
+      "使用中文，回答简洁直接。输出使用 Markdown 格式（标题、列表、加粗等），便于阅读。"
     );
   }
   return (
@@ -55,6 +55,7 @@ export function buildLogQaSystem(localeZh: boolean): string {
     "You are WorkShadow's log Q&A assistant. Answer from the user's question and the retrieved log excerpts below as the factual basis. " +
     MEMORY_USE_EN +
     "Do not invent facts not present in the excerpts; say when information is insufficient. " +
-    "Do not refer to prior turns (single-shot Q&A). Be concise and direct."
+    "Do not refer to prior turns (single-shot Q&A). Be concise and direct. " +
+    "Output in Markdown (headings, lists, emphasis, etc.) for readability."
   );
 }
