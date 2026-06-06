@@ -1,0 +1,139 @@
+# =============================================================================
+# WorkShadow · robots.txt
+# 网站：https://futureuniant.github.io/WorkShadow/
+# Site: https://futureuniant.github.io/WorkShadow/
+#
+# 本文件用于告知搜索引擎与爬虫本站的抓取策略。
+# This file tells search engines and crawlers how to access this site.
+#
+# 面向 AI / LLM 的机器可读入口（llms.txt 标准路径，Jeremy Howard 2024 倡议）：
+# Machine-readable entry for AI / LLM (llms.txt standard path):
+#   https://futureuniant.github.io/WorkShadow/llms.txt
+# HTML 发现链接见各页面 <link rel="alternate" type="text/plain" href="./llms.txt">
+# =============================================================================
+
+# --- 通用规则 / General rules -----------------------------------------------
+
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /Home.png
+Allow: /AppLight.png
+Allow: /AppDark.png
+Allow: /AppLightSmall.png
+Allow: /AppDarkSmall.png
+Allow: /logo.png
+Allow: /llms.txt
+Allow: /robots.txt
+
+# 联系二维码图片允许索引，便于用户发现社区入口。
+# Contact QR images may be indexed to help users find community channels.
+Allow: /wechat.jpg
+Allow: /wechat_public.jpg
+Allow: /qq_group.jpg
+Allow: /qq_group_square.jpg
+
+# 无需要屏蔽的私有路径；本站为静态开源项目主页。
+# No private paths to block; this is a static open-source project homepage.
+
+# --- 主流搜索引擎 / Major search engines ------------------------------------
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: Sogou web spider
+Allow: /
+
+User-agent: 360Spider
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# ========== AI 训练爬虫：禁止全站，仅开放 /llms.txt ==========
+# Block full-site training crawl; allow standard llms.txt entry only.
+# 防止页面内容被用作训练数据，同时通过标准路径提供机器可读站点摘要。
+# Prevent page content from training use while exposing llms.txt for AI discovery.
+
+# 允许 AI 爬虫访问 llms.txt 文件
+# Allow AI crawlers to access the llms.txt file
+
+User-agent: GPTBot
+Disallow: /
+Allow: /llms.txt
+
+User-agent: ClaudeBot
+Disallow: /
+Allow: /llms.txt
+
+User-agent: Claude-Web
+Disallow: /
+Allow: /llms.txt
+
+User-agent: Google-Extended
+Disallow: /
+Allow: /llms.txt
+
+User-agent: anthropic-ai
+Disallow: /
+Allow: /llms.txt
+
+User-agent: Applebot-Extended
+Disallow: /
+Allow: /llms.txt
+
+User-agent: cohere-ai
+Disallow: /
+Allow: /llms.txt
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+Allow: /llms.txt
+
+User-agent: Bytespider
+Disallow: /
+Allow: /llms.txt
+
+User-agent: CCBot
+Disallow: /
+Allow: /llms.txt
+
+User-agent: Amazonbot
+Disallow: /
+Allow: /llms.txt
+
+User-agent: PerplexityBot
+Disallow: /
+Allow: /llms.txt
+
+# --- 抓取频率提示（非强制性，依爬虫实现而定）--------------------------------
+# Crawl-delay hints (non-binding; depends on crawler implementation)
+
+# 本站为轻量静态页，无需高频抓取。
+# This is a lightweight static site; frequent re-crawling is unnecessary.
+Crawl-delay: 2
+
+# --- 站点地图（如有更新可在此补充）------------------------------------------
+# Sitemap (add when available)
+
+# Sitemap: https://futureuniant.github.io/WorkShadow/sitemap.xml
+
+# --- 项目元信息（供维护者阅读，爬虫通常忽略注释）----------------------------
+# Project metadata (for maintainers; crawlers typically ignore comments)
+#
+# 项目名称 / Name:        WorkShadow（如影随形）
+# 类型 / Type:            本地优先桌面工作日志 / Local-first desktop work journal
+# 开源仓库 / Repository:  https://github.com/FutureUniant/WorkShadow
+# 国内镜像 / Mirror:      https://gitcode.com/FutureUniant/WorkShadow
+# 许可 / License:         AGPL-3.0
+# 联系 / Contact:         feiyangtech@qq.com
+# 当前版本 / Version:     0.1.3
