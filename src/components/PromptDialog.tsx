@@ -22,7 +22,7 @@ export function PromptDialog({ options, onClose }: Props) {
   if (!options) return null;
 
   return (
-    <div className="modal-backdrop" style={{ zIndex: 45 }}>
+    <div className="modal-backdrop">
       <section className="modal-card" onKeyDown={(e) => e.stopPropagation()}>
         <h2>{options.title}</h2>
         {options.message ? <p>{options.message}</p> : null}

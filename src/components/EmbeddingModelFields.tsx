@@ -58,15 +58,9 @@ export function EmbeddingModelFields({ committed, onCommit, confirm, onRegisterF
   committedRef.current = committed;
 
   useEffect(() => {
-    const sameEmbedding = modelConfigEqual(committed.embedding, draftConfigRef.current);
-    const sameProfiles = profilesSnapshot(committed.embeddingProfiles) === profilesSnapshot(draftProfilesRef.current);
-    if (!sameEmbedding || !sameProfiles) {
-      if (!committing) {
-        setDraftConfig(committed.embedding);
-        setDraftProfiles(committed.embeddingProfiles ?? {});
-      }
-    }
-  }, [committed, committing]);
+    setDraftConfig(committed.embedding);
+    setDraftProfiles(committed.embeddingProfiles ?? {});
+  }, [committed]);
 
   function draftPatch(): Pick<AppSettings, "embedding" | "embeddingProfiles"> {
     const provider = draftConfigRef.current.provider ?? "openaiCompatible";
@@ -116,7 +110,7 @@ export function EmbeddingModelFields({ committed, onCommit, confirm, onRegisterF
       });
 
       if (!result.applied) {
-        if (result.reason === "testFailed" || result.reason === "cancelled") {
+        if (result.reason === "cancelled") {
           setDraftConfig(prev.embedding);
           setDraftProfiles(prev.embeddingProfiles ?? {});
         }
@@ -144,7 +138,7 @@ export function EmbeddingModelFields({ committed, onCommit, confirm, onRegisterF
   async function runManualTest() {
     setTest({ status: "running" });
     try {
-      const dim = await testEmbeddingConfig(draftConfig);
+      const dim = await testEmbeddingConfig(draftConfigRef.current);
       setTest({ status: "ok", message: t("modelTestSuccessEmbedding", { dim }) });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);

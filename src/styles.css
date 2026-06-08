@@ -672,6 +672,10 @@ button {
   background: var(--panel-muted);
 }
 
+:root:not([data-theme="dark"]) .tree-row.active {
+  background: color-mix(in srgb, var(--primary) 14%, var(--panel-muted));
+}
+
 .tree-label {
   flex: 1;
   display: flex;
@@ -2964,7 +2968,7 @@ button.settings-data-import-btn.danger {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: 10200;
   display: grid;
   place-items: center;
   background: rgba(0, 0, 0, 0.4);

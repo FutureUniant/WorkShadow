@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WorkShadow</title>
+    <script>
+      /*__WORKSHADOW_BOOT_DATA__*/
+      (function () {
+        var theme = "light";
+        try {
+          var stored = localStorage.getItem("workshadow.bootTheme");
+          if (stored === "dark" || stored === "light") theme = stored;
+        } catch (e) {}
+        document.documentElement.setAttribute("data-boot-theme", theme);
+        var data = window.__WORKSHADOW_BOOT_DATA__;
+        if (data) {
+          window.__WORKSHADOW_BOOT_LOGO__ = theme === "dark" ? data.dark : data.light;
+        }
+      })();
+    </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #f7f8fb;
+      }
+      html[data-boot-theme="dark"],
+      html[data-boot-theme="dark"] body {
+        background: #0f172a;
+      }
+      #workshadow-boot {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: #f7f8fb;
+        pointer-events: none;
+      }
+      html[data-boot-theme="dark"] #workshadow-boot {
+        background: #0f172a;
+      }
+      /* 转圈：视口垂直正中 */
+      .workshadow-boot__spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 26px;
+        height: 26px;
+        margin: 0;
+        transform: translate(-50%, -50%);
+        border: 2px solid #d9e0ea;
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: workshadow-boot-spin 0.7s linear infinite;
+      }
+      html[data-boot-theme="dark"] .workshadow-boot__spinner {
+        border-color: #334155;
+        border-top-color: #60a5fa;
+      }
+      /* 图标：比正中略靠上（在转圈上方） */
+      #workshadow-boot-logo {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 128px;
+        height: 128px;
+        object-fit: contain;
+        transform: translate(-50%, calc(-50% - 58px));
+      }
+      @keyframes workshadow-boot-spin {
+        to {
+          transform: translate(-50%, -50%) rotate(360deg);
+        }
+      }
+      html.workshadow-ready #workshadow-boot {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="workshadow-boot" aria-live="polite" aria-busy="true">
+      <img
+        id="workshadow-boot-logo"
+        alt="WorkShadow"
+        width="128"
+        height="128"
+        decoding="sync"
+        fetchpriority="high"
+        src="__WORKSHADOW_BOOT_LIGHT_SRC__"
+      />
+      <div class="workshadow-boot__spinner" aria-hidden="true"></div>
+    </div>
+    <div id="root"></div>
+    <div id="workshadow-overlays"></div>
+    <script>
+      (function () {
+        var logo = window.__WORKSHADOW_BOOT_LOGO__;
+        var img = document.getElementById("workshadow-boot-logo");
+        if (img && logo) img.src = logo;
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
