@@ -6,7 +6,7 @@
 # 本文件用于告知搜索引擎与爬虫本站的抓取策略。
 # This file tells search engines and crawlers how to access this site.
 #
-# 面向 AI / LLM 的机器可读入口（llms.txt 标准路径，Jeremy Howard 2024 倡议）：
+# 面向 AI / LLM 的机器可读入口（llms.txt 标准路径）：
 # Machine-readable entry for AI / LLM (llms.txt standard path):
 #   https://futureuniant.github.io/WorkShadow/llms.txt
 # HTML 发现链接见各页面 <link rel="alternate" type="text/plain" href="./llms.txt">

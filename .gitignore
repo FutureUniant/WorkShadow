@@ -8,3 +8,4 @@ logs
 data
 .DS_Store
 
+docs/_gen_faq.py
