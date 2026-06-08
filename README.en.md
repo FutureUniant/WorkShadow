@@ -16,6 +16,12 @@
 
 WorkShadow is a **local-first** desktop work journal. Manage entries on the left and write in a rich-text editor on the right—daily work, decisions, issues, and notes. Data stays on your machine; for AI features (search, summaries, Q&A, image descriptions, and more), connect your own model services in Settings—**you own the content, you choose the capabilities**.
 
+<p align="center">
+  <video src="docs/demo.mp4" width="900" autoplay loop muted playsinline controls>
+    Your browser does not support video playback. Open <a href="docs/demo.mp4">docs/demo.mp4</a> directly.
+  </video>
+</p>
+
 ---
 
 ## How is WorkShadow different from typical notes / docs tools?
@@ -29,12 +35,6 @@ WorkShadow is a **local-first** desktop work journal. Manage entries on the left
 | Backup and migration | **`.ws` full backup** with merge import |
 
 WorkShadow is not a general-purpose Word or Notion replacement—it is a **work journal companion** for ongoing capture, review, and reporting: smooth writing, fast finding, easier summaries, with data and model choice always in your hands.
-
-<p align="center">
-  <video src="docs/demo.mp4" width="900" autoplay loop muted playsinline controls>
-    Your browser does not support video playback. Open <a href="docs/demo.mp4">docs/demo.mp4</a> directly.
-  </video>
-</p>
 
 ---
 

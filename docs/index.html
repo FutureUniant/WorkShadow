@@ -876,6 +876,8 @@ button.btn:disabled {
 
 .showcase__img {
   width: 100%;
+  display: block;
+  vertical-align: top;
 }
 
 /* Scroll spy */
@@ -1453,7 +1455,19 @@ button.btn:disabled {
             <p class="section__desc" data-i18n="showcase.desc">树形管理、富文本编辑、本地搜索与工作台 AI 辅助，在同一桌面窗口中连贯完成。</p>
           </header>
           <div class="showcase__panel">
-            <img src="./assets/home.png" alt="WorkShadow 主界面截图" class="showcase__img" loading="lazy" data-i18n-alt="showcase.shotAlt" />
+            <video
+              class="showcase__img"
+              src="./demo.mp4"
+              poster="./assets/home.png"
+              width="900"
+              autoplay
+              loop
+              muted
+              playsinline
+              controls
+              data-i18n-aria-label="showcase.shotAlt"
+              aria-label="WorkShadow 演示视频"
+            ></video>
           </div>
         </div>
       </section>
