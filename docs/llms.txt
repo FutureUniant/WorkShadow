@@ -37,13 +37,13 @@ AI tools that support this convention will automatically try to fetch `/llms.txt
 ## 基本信息
 
 **口号：** 如影随形，记你所做，懂你想要。  
-**版本：** 0.1.3  
+**版本：** 0.1.4  
 **界面语言：** 简体中文、English
 
 ## Basic Information
 
 **Slogan:** Always with you — record what you do, understand what you need.  
-**Version:** 0.1.3  
+**Version:** 0.1.4  
 **Languages:** Chinese (zh-CN), English (en)
 
 ---

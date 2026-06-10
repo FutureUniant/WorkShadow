@@ -96,6 +96,10 @@ WorkShadow 不是替代 Word 或 Notion 的通用文档编辑器，而是面向*
 
 前往 [Releases 发布页](https://github.com/FutureUniant/WorkShadow/releases) 下载 **安装版**（`WorkShadow_*_x64-setup.exe`）。安装完成后从开始菜单或桌面快捷方式启动即可。以下为安装后的日常使用说明。
 
+国内用户也可通过 **百度网盘** 下载：  
+[https://pan.baidu.com/s/1XhpGp3PBEld2KJj7mkbNMw?pwd=s5ma](https://pan.baidu.com/s/1XhpGp3PBEld2KJj7mkbNMw?pwd=s5ma)  
+提取码：`s5ma`
+
 #### 1. 首次打开
 
 1. 启动 WorkShadow。

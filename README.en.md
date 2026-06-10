@@ -96,6 +96,10 @@ Completion and onboarding learn on your machine—log bodies are not uploaded. A
 
 Visit the [Releases](https://github.com/FutureUniant/WorkShadow/releases) page to download the **installer** (`WorkShadow_*_x64-setup.exe`). Launch from the Start menu or desktop shortcut after installation. Daily use:
 
+Users in China can also download from **Baidu Netdisk**:  
+[https://pan.baidu.com/s/1XhpGp3PBEld2KJj7mkbNMw?pwd=s5ma](https://pan.baidu.com/s/1XhpGp3PBEld2KJj7mkbNMw?pwd=s5ma)  
+Extraction code: `s5ma`
+
 #### 1. First launch
 
 1. Open WorkShadow.
