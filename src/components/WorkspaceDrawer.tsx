@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ClipboardList, Pencil, Sparkles, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ClipboardList, FileText, Folder, Pencil, Sparkles, Trash2, X } from "lucide-react";
 import type { AppSettings, DocumentGenerationPref, LogNode, MemoryEntry } from "../types";
 import {
   DOC_PREF_LOG_SUMMARY,
@@ -12,7 +12,7 @@ import type { AskLogsFromRagCallbacks, LogQaRetrievedExcerpt, LogQaSource } from
 import { isLlmInputTooLongError } from "../services/llmInputLimits";
 import { reportErrorToUser } from "../services/errorReporting";
 import { isLocaleZhFromSettings } from "../services/appLocale";
-import { getPathTitle, listLogNodesByUpdatedDesc } from "../services/tree";
+import { collectDescendantLogIds, getChildrenSorted, listAllLogIds } from "../services/tree";
 import { WorkspaceMarkdown } from "./WorkspaceMarkdown";
 
 interface Props {
@@ -59,6 +59,7 @@ export function WorkspaceDrawer({
   const askAnswerRef = useRef<HTMLDivElement>(null);
   const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
   const [memoryDraft, setMemoryDraft] = useState({ title: "", body: "" });
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
 
   const localeZh = isLocaleZhFromSettings(settings);
   const sortedMemoryEntries = useMemo(
@@ -67,7 +68,16 @@ export function WorkspaceDrawer({
   );
   const { focus, style } = getLogSummaryPref(documentGenerationPrefs);
 
-  const logNodes = useMemo(() => listLogNodesByUpdatedDesc(nodes), [nodes]);
+  const allLogIds = useMemo(() => listAllLogIds(nodes), [nodes]);
+  const branchIds = useMemo(
+    () => nodes.filter((n) => nodes.some((c) => c.parentId === n.id)).map((n) => n.id),
+    [nodes]
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    setExpandedIds(branchIds.length ? [...branchIds] : []);
+  }, [open, branchIds]);
 
   useEffect(() => {
     if (!open || !activeLogId) return;
@@ -138,16 +148,85 @@ export function WorkspaceDrawer({
     if (editingMemoryId === id) setEditingMemoryId(null);
   }
 
-  function toggleLog(id: string) {
-    setSelectedLogIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  function toggleExpanded(id: string) {
+    setExpandedIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  }
+
+  function toggleLogTreeNode(id: string) {
+    const descendantLogIds = collectDescendantLogIds(nodes, id);
+    if (!descendantLogIds.length) return;
+    const allSelected = descendantLogIds.every((logId) => selectedLogIds.includes(logId));
+    setSelectedLogIds((prev) => {
+      if (allSelected) {
+        const remove = new Set(descendantLogIds);
+        return prev.filter((x) => !remove.has(x));
+      }
+      return [...new Set([...prev, ...descendantLogIds])];
+    });
   }
 
   function selectAllLogs() {
-    setSelectedLogIds(logNodes.map((n) => n.id));
+    setSelectedLogIds(allLogIds);
   }
 
   function clearLogSelection() {
     setSelectedLogIds([]);
+  }
+
+  function renderLogPickTree(parentId: string | null, depth: number): React.ReactNode {
+    return getChildrenSorted(nodes, parentId).map((node) => {
+      const children = getChildrenSorted(nodes, node.id);
+      const hasChildren = children.length > 0;
+      const expanded = expandedIds.includes(node.id);
+      const descendantLogIds = collectDescendantLogIds(nodes, node.id);
+      const checked =
+        descendantLogIds.length > 0 && descendantLogIds.every((logId) => selectedLogIds.includes(logId));
+      const indeterminate =
+        !checked && descendantLogIds.some((logId) => selectedLogIds.includes(logId));
+      const noLogs = descendantLogIds.length === 0;
+
+      return (
+        <li key={node.id} className="workspace-log-pick__tree-node">
+          <div className="workspace-log-pick__tree-row" style={{ paddingLeft: depth * 16 }}>
+            <button
+              type="button"
+              className="icon-button workspace-log-pick__chevron"
+              onClick={() => toggleExpanded(node.id)}
+              aria-label="toggle"
+              disabled={!hasChildren}
+            >
+              {hasChildren ? (
+                expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />
+              ) : (
+                <span className="spacer" />
+              )}
+            </button>
+            <label className={`workspace-log-pick__item${checked ? " is-checked" : ""}`}>
+              <input
+                type="checkbox"
+                checked={checked}
+                disabled={noLogs}
+                ref={(el) => {
+                  if (el) el.indeterminate = indeterminate;
+                }}
+                onChange={() => toggleLogTreeNode(node.id)}
+              />
+              {hasChildren ? (
+                <Folder size={16} className="workspace-log-pick__icon" aria-hidden />
+              ) : (
+                <FileText size={16} className="workspace-log-pick__icon" aria-hidden />
+              )}
+              <span className="workspace-log-pick__item-text">
+                <span className="workspace-log-pick__title">{node.title}</span>
+              </span>
+            </label>
+          </div>
+          {hasChildren && expanded ? (
+            <ul className="workspace-log-pick__tree-children">{renderLogPickTree(node.id, depth + 1)}</ul>
+          ) : null}
+        </li>
+      );
+    });
   }
 
   async function runSummary() {
@@ -486,32 +565,16 @@ export function WorkspaceDrawer({
                   </span>
                 </div>
                 <div className="workspace-log-pick__actions">
-                  <button type="button" className="workspace-soft-button workspace-log-pick__action" onClick={selectAllLogs} disabled={!logNodes.length}>
+                  <button type="button" className="workspace-soft-button workspace-log-pick__action" onClick={selectAllLogs} disabled={!allLogIds.length}>
                     {t("workspaceSummarySelectAll")}
                   </button>
                   <button type="button" className="workspace-soft-button workspace-log-pick__action" onClick={clearLogSelection} disabled={!selectedLogIds.length}>
                     {t("workspaceSummaryClear")}
                   </button>
                 </div>
-                {logNodes.length ? (
-                  <ul className="workspace-log-pick__list" aria-label={t("workspaceSummaryLogs")}>
-                    {logNodes.map((log) => {
-                      const path = getPathTitle(nodes, log.id);
-                      const checked = selectedLogIds.includes(log.id);
-                      return (
-                        <li key={log.id}>
-                          <label className={`workspace-log-pick__item${checked ? " is-checked" : ""}`}>
-                            <input type="checkbox" checked={checked} onChange={() => toggleLog(log.id)} />
-                            <span className="workspace-log-pick__item-text">
-                              <span className="workspace-log-pick__title">{log.title}</span>
-                              {path && path !== log.title ? (
-                                <span className="workspace-log-pick__path muted">{path}</span>
-                              ) : null}
-                            </span>
-                          </label>
-                        </li>
-                      );
-                    })}
+                {allLogIds.length ? (
+                  <ul className="workspace-log-pick__list workspace-log-pick__list--tree" aria-label={t("workspaceSummaryLogs")}>
+                    {renderLogPickTree(null, 0)}
                   </ul>
                 ) : (
                   <p className="muted workspace-log-pick__empty">{t("workspaceSummaryNoLogs")}</p>

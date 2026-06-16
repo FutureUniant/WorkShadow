@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ErrorReportingSurface } from "./components/ErrorReportingSurface";
+import { TextContextMenu } from "./components/TextContextMenu";
 import faviconUrl from "./assets/logo.png";
 import "./i18n";
 import "./styles.css";
@@ -19,6 +20,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ErrorReportingSurface>
       <App />
+      <TextContextMenu />
     </ErrorReportingSurface>
   </React.StrictMode>
 );

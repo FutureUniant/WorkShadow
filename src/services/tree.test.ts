@@ -3,7 +3,9 @@ import {
   compareByUpdatedAtDesc,
   createNode,
   compareByCreatedAtAsc,
+  collectDescendantLogIds,
   getChildrenSorted,
+  listAllLogIds,
   listLogNodesByUpdatedDesc,
   parentIdForNewChild,
   parentIdForNewSibling,
@@ -81,6 +83,27 @@ describe("new log parent resolution", () => {
   it("parentIdForNewChild uses active node as parent", () => {
     expect(parentIdForNewChild(nodes, "child")).toBe("child");
     expect(parentIdForNewChild(nodes, "root")).toBe("root");
+  });
+});
+
+describe("collectDescendantLogIds", () => {
+  const nodes: LogNode[] = [
+    { id: "folder", parentId: null, title: "F", kind: "folder", createdAt: "", updatedAt: "", tiptapJson: {}, markdown: "" },
+    { id: "parent", parentId: null, title: "P", kind: "log", createdAt: "", updatedAt: "", tiptapJson: {}, markdown: "" },
+    { id: "child", parentId: "parent", title: "C", kind: "log", createdAt: "", updatedAt: "", tiptapJson: {}, markdown: "" },
+    { id: "leaf", parentId: "folder", title: "L", kind: "log", createdAt: "", updatedAt: "", tiptapJson: {}, markdown: "" }
+  ];
+
+  it("includes self and descendant logs for a branch log", () => {
+    expect(collectDescendantLogIds(nodes, "parent")).toEqual(["parent", "child"]);
+  });
+
+  it("collects only logs under a folder", () => {
+    expect(collectDescendantLogIds(nodes, "folder")).toEqual(["leaf"]);
+  });
+
+  it("listAllLogIds returns every log node", () => {
+    expect(listAllLogIds(nodes).sort()).toEqual(["child", "leaf", "parent"]);
   });
 });
 

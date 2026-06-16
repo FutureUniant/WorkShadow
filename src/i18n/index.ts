@@ -25,6 +25,10 @@ export const resources = {
       toastShowDetail: "展开详情",
       toastHideDetail: "收起详情",
       copyDiagnostics: "复制诊断信息",
+      contextMenuCopy: "复制",
+      contextMenuCut: "剪切",
+      contextMenuPaste: "粘贴",
+      contextMenuSelectAll: "全选",
       errorReportTitlePersist: "无法保存应用状态",
       errorReportSummaryPersist:
         "未能把设置与日志树写入本机数据库。常见原因：磁盘已满、安全软件拦截、或没有应用数据目录的写入权限。可检查磁盘与权限后重试。",
@@ -474,6 +478,10 @@ export const resources = {
       toastShowDetail: "Show details",
       toastHideDetail: "Hide details",
       copyDiagnostics: "Copy diagnostics",
+      contextMenuCopy: "Copy",
+      contextMenuCut: "Cut",
+      contextMenuPaste: "Paste",
+      contextMenuSelectAll: "Select all",
       errorReportTitlePersist: "Could not save app state",
       errorReportSummaryPersist:
         "Settings and the log tree could not be written to local storage. Common causes: low disk space, security software blocking writes, or no permission for the app data folder. Check disk and permissions, then retry.",

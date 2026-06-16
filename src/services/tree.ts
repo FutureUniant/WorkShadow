@@ -64,6 +64,22 @@ export function listLogNodesByUpdatedDesc(nodes: LogNode[]): LogNode[] {
   return nodes.filter((n) => n.kind === "log").sort(compareByUpdatedAtDesc);
 }
 
+/** 全部 kind=log 的节点 id */
+export function listAllLogIds(nodes: LogNode[]): string[] {
+  return nodes.filter((n) => n.kind === "log").map((n) => n.id);
+}
+
+/** 收集某节点子树中所有 kind=log 的节点 id（含自身若为 log） */
+export function collectDescendantLogIds(nodes: LogNode[], nodeId: string): string[] {
+  const node = nodes.find((n) => n.id === nodeId);
+  if (!node) return [];
+  const ids: string[] = node.kind === "log" ? [node.id] : [];
+  for (const child of getChildren(nodes, node.id)) {
+    ids.push(...collectDescendantLogIds(nodes, child.id));
+  }
+  return ids;
+}
+
 /** 侧栏等 UI：有子节点时用文件夹图标；节点本身仍是日志，可写总述 */
 export function nodeHasChildLogs(nodes: LogNode[], nodeId: string): boolean {
   return getChildren(nodes, nodeId).length > 0;

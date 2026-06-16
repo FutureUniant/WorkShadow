@@ -85,8 +85,10 @@ import { ensureKatexStyles } from "../services/katexStyle";
 import { reportErrorToUser, reportSuccessNotice } from "../services/errorReporting";
 import { tiptapToMarkdown } from "../services/markdown";
 import { pickMarkdownFile } from "../services/pickMarkdownFile";
+import { loadEditorDocument } from "../services/editorHistory";
 import type { ConfirmOptions } from "../types";
 import { LinkInsertDialog, type LinkDialogMode } from "./LinkInsertDialog";
+import { emptyDoc } from "../defaults";
 import { MathInsertDialog, type MathInsertMode } from "./MathInsertDialog";
 import { MediaInsertDialog } from "./MediaInsertDialog";
 import { MediaLightbox } from "./MediaLightbox";
@@ -374,7 +376,7 @@ export function EditorPane({
         markedOptions: { gfm: true }
       })
     ],
-    content: node?.tiptapJson as Content | undefined,
+    content: emptyDoc,
     immediatelyRender: false,
     onUpdate: ({ editor: activeEditor }) => {
       if (!node) return;
@@ -404,9 +406,7 @@ export function EditorPane({
 
   useLayoutEffect(() => {
     if (!editor || !node) return;
-    if (JSON.stringify(editor.getJSON()) !== JSON.stringify(node.tiptapJson)) {
-      editor.commands.setContent(node.tiptapJson as Content);
-    }
+    loadEditorDocument(editor, node.tiptapJson as Content);
   }, [editor, node?.id]);
 
   const linkDialogMode: LinkDialogMode = useMemo(() => {
@@ -867,7 +867,7 @@ export function EditorPane({
     setImportBusy(true);
     try {
       if (preview) onPreviewToggle();
-      editor.commands.setContent(picked.text, { contentType: "markdown" });
+      loadEditorDocument(editor, picked.text, { contentType: "markdown", emitUpdate: true });
       const json = editor.getJSON();
       onChange({
         ...node,
