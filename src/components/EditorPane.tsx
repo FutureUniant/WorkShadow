@@ -7,14 +7,13 @@ import {
   useState,
   type ReactNode
 } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { Color, FontFamily, TextStyle } from "@tiptap/extension-text-style";
-import { EditorContent, useEditor, useEditorState, type Content } from "@tiptap/react";
+import { EditorContent, useEditor, useEditorState, type Content, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import CodeMark from "@tiptap/extension-code";
 import CodeBlock from "@tiptap/extension-code-block";
-import Highlight from "@tiptap/extension-highlight";
 import { ImageCaption } from "../extensions/imageCaption";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -54,6 +53,7 @@ import {
   ListChecks,
   ListOrdered,
   Minus,
+  PaintBucket,
   Pipette,
   Quote,
   Redo2,
@@ -72,23 +72,27 @@ import {
   Underline as UnderlineIcon,
   Undo2,
   Save,
-  PaintBucket,
   Type
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { TableCellVertical, TableHeaderVertical } from "../extensions/tableCellVertical";
+import { HighlightColor } from "../extensions/highlightColor";
+import { EditorClipboard } from "../extensions/editorClipboard";
 import { Video } from "../extensions/video";
 import type { LogNode, ShortcutMap } from "../types";
+import { matchesShortcut } from "../services/shortcuts";
 import { resolveVideoEmbed } from "../services/videoEmbed";
 import { collectLightboxItems, findLightboxIndex, type LightboxItem } from "../services/mediaGallery";
 import { ensureKatexStyles } from "../services/katexStyle";
-import { reportErrorToUser, reportSuccessNotice } from "../services/errorReporting";
-import { tiptapToMarkdown } from "../services/markdown";
-import { pickMarkdownFile } from "../services/pickMarkdownFile";
+import { reportErrorToUser } from "../services/errorReporting";
 import { loadEditorDocument } from "../services/editorHistory";
-import type { ConfirmOptions } from "../types";
-import { LinkInsertDialog, type LinkDialogMode } from "./LinkInsertDialog";
+import { tiptapToMarkdown, tiptapToExportMarkdown } from "../services/markdown";
+import { pickMarkdownFile } from "../services/pickMarkdownFile";
+import { saveMarkdownFile } from "../services/saveMarkdownFile";
 import { emptyDoc } from "../defaults";
+import type { ConfirmOptions } from "../types";
+import { isDeveloperBuild } from "../services/productionUiGuards";
+import { LinkInsertDialog, type LinkDialogMode } from "./LinkInsertDialog";
 import { MathInsertDialog, type MathInsertMode } from "./MathInsertDialog";
 import { MediaInsertDialog } from "./MediaInsertDialog";
 import { MediaLightbox } from "./MediaLightbox";
@@ -108,10 +112,10 @@ const DEFAULT_HIGHLIGHT_COLOR = "#fef08a";
 const TEXT_COLOR_PRESETS = ["#2563eb", "#dc2626", "#059669", "#d97706", "#7c3aed"];
 /** 高亮下拉：除默认黄外的常用色 */
 const HIGHLIGHT_PRESETS = ["#fde047", "#f97316", "#4ade80", "#38bdf8", "#c084fc"];
-/** 表格单元格底色：除默认外的常用色 */
-const TABLE_CELL_BG_PRESETS = ["#eff6ff", "#fef2f2", "#f0fdf4", "#fffbeb", "#f3e8ff"];
-/** 表格单元格未设置底色时工具栏色条展示 */
-const DEFAULT_TABLE_CELL_BG = "#f8fafc";
+/** 表格单元格默认底色（「清除」与无标记时的展示） */
+const DEFAULT_TABLE_BG_COLOR = "#f3f4f6";
+/** 表格底色下拉：除默认灰外的常用色 */
+const TABLE_BG_PRESETS = ["#fef3c7", "#dbeafe", "#dcfce7", "#fce7f3", "#e5e7eb"];
 
 const FONT_MENU_W = 268;
 const FONT_MENU_H = 320;
@@ -119,6 +123,8 @@ const COLOR_MENU_W = 252;
 const COLOR_MENU_H = 102;
 const HIGHLIGHT_MENU_W = COLOR_MENU_W;
 const HIGHLIGHT_MENU_H = COLOR_MENU_H;
+const TABLE_BG_MENU_W = COLOR_MENU_W;
+const TABLE_BG_MENU_H = COLOR_MENU_H;
 
 function clampToolbarDropdown(rect: DOMRect, w: number, h: number) {
   const pad = 8;
@@ -153,6 +159,9 @@ const EMOJI_POPOVER_H = 200;
 const TABLE_PICKER_MAX = 10;
 const TABLE_PICKER_W = 240;
 const TABLE_PICKER_H = 280;
+
+/** 编辑停止后多久再同步 tiptapJson + markdown 到父 state（避免每键 getJSON / 重渲染） */
+const CONTENT_SYNC_DEBOUNCE_MS = 400;
 
 function clampTablePickerPosition(rect: DOMRect) {
   const pad = 8;
@@ -302,6 +311,11 @@ export function EditorPane({
   const highlightAnchorRef = useRef<HTMLDivElement>(null);
   const highlightMenuRef = useRef<HTMLDivElement>(null);
   const [highlightDialogOpen, setHighlightDialogOpen] = useState(false);
+  const [tableBgMenuOpen, setTableBgMenuOpen] = useState(false);
+  const [tableBgMenuPos, setTableBgMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const tableBgAnchorRef = useRef<HTMLDivElement>(null);
+  const tableBgMenuRef = useRef<HTMLDivElement>(null);
+  const [tableBgDialogOpen, setTableBgDialogOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [mediaKind, setMediaKind] = useState<"image" | "video" | null>(null);
   const [mathDialog, setMathDialog] = useState<{
@@ -322,11 +336,86 @@ export function EditorPane({
   const [titleDraft, setTitleDraft] = useState("");
   const [saveBusy, setSaveBusy] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
-  const [tableFillMenuOpen, setTableFillMenuOpen] = useState(false);
-  const [tableFillMenuPos, setTableFillMenuPos] = useState<{ top: number; left: number } | null>(null);
-  const tableFillAnchorRef = useRef<HTMLDivElement>(null);
-  const tableFillMenuRef = useRef<HTMLDivElement>(null);
-  const [tableFillDialogOpen, setTableFillDialogOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const editorMainRef = useRef<HTMLDivElement>(null);
+  const editorInstanceRef = useRef<ReturnType<typeof useEditor>>(null);
+
+  const nodeRef = useRef(node);
+  const onChangeRef = useRef(onChange);
+  nodeRef.current = node;
+  onChangeRef.current = onChange;
+
+  const composingRef = useRef(false);
+  const contentDirtyRef = useRef(false);
+  const applyingExternalContentRef = useRef(false);
+  const contentSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearContentSyncTimer = useCallback(() => {
+    if (contentSyncTimerRef.current) {
+      clearTimeout(contentSyncTimerRef.current);
+      contentSyncTimerRef.current = null;
+    }
+  }, []);
+
+  const flushContentSync = useCallback(() => {
+    clearContentSyncTimer();
+    const currentNode = nodeRef.current;
+    const activeEditor = editorInstanceRef.current;
+    if (!currentNode || !activeEditor || !contentDirtyRef.current) return;
+    contentDirtyRef.current = false;
+    const json = activeEditor.getJSON();
+    onChangeRef.current({
+      ...currentNode,
+      tiptapJson: json,
+      markdown: tiptapToMarkdown(json),
+      updatedAt: new Date().toISOString()
+    });
+  }, [clearContentSyncTimer]);
+
+  const scheduleContentSync = useCallback(() => {
+    clearContentSyncTimer();
+    contentSyncTimerRef.current = setTimeout(() => {
+      contentSyncTimerRef.current = null;
+      flushContentSync();
+    }, CONTENT_SYNC_DEBOUNCE_MS);
+  }, [clearContentSyncTimer, flushContentSync]);
+
+  const syncEditorContent = useCallback(
+    (opts?: { markdownImmediate?: boolean }) => {
+      if (!nodeRef.current) return;
+      const activeEditor = editorInstanceRef.current;
+      if (!activeEditor) return;
+      if (opts?.markdownImmediate) {
+        contentDirtyRef.current = false;
+        clearContentSyncTimer();
+        const json = activeEditor.getJSON();
+        onChangeRef.current({
+          ...nodeRef.current,
+          tiptapJson: json,
+          markdown: tiptapToMarkdown(json),
+          updatedAt: new Date().toISOString()
+        });
+        return;
+      }
+      contentDirtyRef.current = true;
+      scheduleContentSync();
+    },
+    [clearContentSyncTimer, scheduleContentSync]
+  );
+
+  const handleEditorUpdate = useCallback(
+    (activeEditor: Editor) => {
+      if (applyingExternalContentRef.current) return;
+      if (!nodeRef.current) return;
+      if (activeEditor.view.composing || composingRef.current) {
+        contentDirtyRef.current = true;
+        return;
+      }
+      contentDirtyRef.current = true;
+      scheduleContentSync();
+    },
+    [scheduleContentSync]
+  );
 
   const editor = useEditor({
     extensions: [
@@ -334,7 +423,8 @@ export function EditorPane({
         heading: { levels: [1, 2, 3] },
         undoRedo: { depth: 100 },
         code: false,
-        codeBlock: false
+        codeBlock: false,
+        dropcursor: { width: 2, class: "workshadow-dropcursor" }
       }),
       EditorCode,
       EditorCodeBlock,
@@ -342,7 +432,7 @@ export function EditorPane({
       Color.configure({ types: ["textStyle"] }),
       FontFamily.configure({ types: ["textStyle"] }),
       Underline,
-      Highlight.configure({ multicolor: true }),
+      HighlightColor,
       Subscript,
       Superscript,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
@@ -350,6 +440,7 @@ export function EditorPane({
       TableRow,
       TableHeaderVertical,
       TableCellVertical,
+      EditorClipboard,
       TaskList,
       TaskItem.configure({ nested: false }),
       Mathematics.configure({
@@ -379,11 +470,48 @@ export function EditorPane({
     content: emptyDoc,
     immediatelyRender: false,
     onUpdate: ({ editor: activeEditor }) => {
-      if (!node) return;
-      const json = activeEditor.getJSON();
-      onChange({ ...node, tiptapJson: json, markdown: tiptapToMarkdown(json), updatedAt: new Date().toISOString() });
+      handleEditorUpdate(activeEditor);
     }
   });
+
+  editorInstanceRef.current = editor ?? null;
+
+  useEffect(() => {
+    if (!editor) return;
+    const dom = editor.view.dom as HTMLElement;
+    const onCompositionStart = () => {
+      composingRef.current = true;
+    };
+    const onCompositionEnd = () => {
+      composingRef.current = false;
+      if (!nodeRef.current) return;
+      contentDirtyRef.current = true;
+      flushContentSync();
+    };
+    dom.addEventListener("compositionstart", onCompositionStart);
+    dom.addEventListener("compositionend", onCompositionEnd);
+    return () => {
+      dom.removeEventListener("compositionstart", onCompositionStart);
+      dom.removeEventListener("compositionend", onCompositionEnd);
+    };
+  }, [editor, flushContentSync]);
+
+  useLayoutEffect(() => {
+    const snapshotNode = node;
+    return () => {
+      clearContentSyncTimer();
+      const activeEditor = editorInstanceRef.current;
+      if (!snapshotNode || !activeEditor || !contentDirtyRef.current) return;
+      contentDirtyRef.current = false;
+      const json = activeEditor.getJSON();
+      onChangeRef.current({
+        ...snapshotNode,
+        tiptapJson: json,
+        markdown: tiptapToMarkdown(json),
+        updatedAt: new Date().toISOString()
+      });
+    };
+  }, [node?.id, clearContentSyncTimer]);
 
   mathClickRef.current = (kind, pos, latex) => {
     setMathDialog({
@@ -406,8 +534,15 @@ export function EditorPane({
 
   useLayoutEffect(() => {
     if (!editor || !node) return;
-    loadEditorDocument(editor, node.tiptapJson as Content);
-  }, [editor, node?.id]);
+    clearContentSyncTimer();
+    contentDirtyRef.current = false;
+    applyingExternalContentRef.current = true;
+    try {
+      loadEditorDocument(editor, node.tiptapJson as Content);
+    } finally {
+      applyingExternalContentRef.current = false;
+    }
+  }, [editor, node?.id, clearContentSyncTimer]);
 
   const linkDialogMode: LinkDialogMode = useMemo(() => {
     if (!editor || !linkOpen) return "urlOnly";
@@ -432,8 +567,8 @@ export function EditorPane({
       colorDialogOpen ||
       highlightMenuOpen ||
       highlightDialogOpen ||
-      tableFillMenuOpen ||
-      tableFillDialogOpen
+      tableBgMenuOpen ||
+      tableBgDialogOpen
     ) {
       editor.commands.blur();
     }
@@ -448,36 +583,9 @@ export function EditorPane({
     colorDialogOpen,
     highlightMenuOpen,
     highlightDialogOpen,
-    tableFillMenuOpen,
-    tableFillDialogOpen
+    tableBgMenuOpen,
+    tableBgDialogOpen
   ]);
-
-  useEffect(() => {
-    if (!editor) return;
-    const dom = editor.view.dom as HTMLElement;
-    const onPaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items?.length) return;
-      for (let i = 0; i < items.length; i++) {
-        const it = items[i];
-        if (it.kind === "file" && it.type.startsWith("image/")) {
-          e.preventDefault();
-          const file = it.getAsFile();
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = () => {
-            const src = typeof reader.result === "string" ? reader.result : "";
-            if (!src) return;
-            editor.chain().focus().insertContent({ type: "image", attrs: { src, caption: "", alt: "" } }).run();
-          };
-          reader.readAsDataURL(file);
-          return;
-        }
-      }
-    };
-    dom.addEventListener("paste", onPaste);
-    return () => dom.removeEventListener("paste", onPaste);
-  }, [editor, t]);
 
   useEffect(() => {
     if (!editor) return;
@@ -610,15 +718,15 @@ export function EditorPane({
   }, [highlightMenuOpen]);
 
   useLayoutEffect(() => {
-    if (!tableFillMenuOpen) {
-      setTableFillMenuPos(null);
+    if (!tableBgMenuOpen) {
+      setTableBgMenuPos(null);
       return;
     }
-    const anchor = tableFillAnchorRef.current;
+    const anchor = tableBgAnchorRef.current;
     if (!anchor) return;
     const place = () => {
       const rect = anchor.getBoundingClientRect();
-      setTableFillMenuPos(clampToolbarDropdown(rect, COLOR_MENU_W, COLOR_MENU_H));
+      setTableBgMenuPos(clampToolbarDropdown(rect, TABLE_BG_MENU_W, TABLE_BG_MENU_H));
     };
     place();
     window.addEventListener("scroll", place, true);
@@ -627,7 +735,7 @@ export function EditorPane({
       window.removeEventListener("scroll", place, true);
       window.removeEventListener("resize", place);
     };
-  }, [tableFillMenuOpen]);
+  }, [tableBgMenuOpen]);
 
   useEffect(() => {
     if (!emojiOpen) return;
@@ -652,7 +760,7 @@ export function EditorPane({
   }, [tablePickerOpen]);
 
   useEffect(() => {
-    if (!fontMenuOpen && !colorMenuOpen && !highlightMenuOpen && !tableFillMenuOpen) return;
+    if (!fontMenuOpen && !colorMenuOpen && !highlightMenuOpen && !tableBgMenuOpen) return;
     const onDocClick = (event: MouseEvent) => {
       const target = event.target as Node;
       if (fontMenuOpen && (fontAnchorRef.current?.contains(target) || fontMenuRef.current?.contains(target))) return;
@@ -667,18 +775,18 @@ export function EditorPane({
       )
         return;
       if (
-        tableFillMenuOpen &&
-        (tableFillAnchorRef.current?.contains(target) || tableFillMenuRef.current?.contains(target))
+        tableBgMenuOpen &&
+        (tableBgAnchorRef.current?.contains(target) || tableBgMenuRef.current?.contains(target))
       )
         return;
       setFontMenuOpen(false);
       setColorMenuOpen(false);
       setHighlightMenuOpen(false);
-      setTableFillMenuOpen(false);
+      setTableBgMenuOpen(false);
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
-  }, [fontMenuOpen, colorMenuOpen, highlightMenuOpen, tableFillMenuOpen]);
+  }, [fontMenuOpen, colorMenuOpen, highlightMenuOpen, tableBgMenuOpen]);
 
   const styleAttrs = useEditorState({
     editor,
@@ -771,14 +879,13 @@ export function EditorPane({
     }
   });
 
-  const tableCellBgNorm = (tableUi?.cellBackgroundColor ?? "").trim().toLowerCase();
-  const effectiveTableCellBg =
+  const effectiveTableBgColor =
     tableUi?.cellBackgroundColor && isHexColor(tableUi.cellBackgroundColor)
       ? tableUi.cellBackgroundColor
-      : DEFAULT_TABLE_CELL_BG;
-  const tableCellBgClearSelected = !tableCellBgNorm;
+      : DEFAULT_TABLE_BG_COLOR;
+  const tableBgColorNorm = (tableUi?.cellBackgroundColor ?? "").trim().toLowerCase();
+  const tableBgClearSelected = !tableBgColorNorm || tableBgColorNorm === DEFAULT_TABLE_BG_COLOR.toLowerCase();
 
-  const editorMainRef = useRef<HTMLDivElement>(null);
   const logScrollRef = useRef<Record<string, number>>({});
 
   useLayoutEffect(() => {
@@ -815,14 +922,16 @@ export function EditorPane({
     if (saveBusy) return;
     setSaveBusy(true);
     try {
+      flushSync(() => {
+        flushContentSync();
+      });
       await Promise.resolve(onSave());
-      reportSuccessNotice(t("saveDoneTitle"), t("saveDoneSummary"));
-    } catch (e) {
-      reportErrorToUser("persist", e, { severity: "toast" });
+    } catch {
+      /* 错误已由保存管线通过 reportErrorToUser 提示 */
     } finally {
       setSaveBusy(false);
     }
-  }, [editor, node, saveBusy, onSave, t]);
+  }, [editor, node, saveBusy, onSave, flushContentSync]);
 
   useEffect(() => {
     if (!editor || preview || !node) return;
@@ -868,13 +977,7 @@ export function EditorPane({
     try {
       if (preview) onPreviewToggle();
       loadEditorDocument(editor, picked.text, { contentType: "markdown", emitUpdate: true });
-      const json = editor.getJSON();
-      onChange({
-        ...node,
-        tiptapJson: json,
-        markdown: tiptapToMarkdown(json),
-        updatedAt: new Date().toISOString()
-      });
+      syncEditorContent({ markdownImmediate: true });
     } catch (e) {
       reportErrorToUser("persist", e);
     } finally {
@@ -883,6 +986,24 @@ export function EditorPane({
   }
 
   const canImportMarkdown = node?.kind === "log" && Boolean(editor) && !importBusy;
+
+  async function handleExportMarkdown() {
+    if (!node || node.kind !== "log" || !editor || exportBusy) return;
+
+    setExportBusy(true);
+    try {
+      flushContentSync();
+      const markdown = tiptapToExportMarkdown(editor.getJSON());
+      const title = (node.title.trim() || "export").replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").slice(0, 80);
+      await saveMarkdownFile(markdown, `${title}.md`);
+    } catch (e) {
+      reportErrorToUser("persist", e);
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
+  const canExportMarkdown = isDeveloperBuild() && node?.kind === "log" && Boolean(editor) && !exportBusy;
 
   return (
     <>
@@ -915,22 +1036,23 @@ export function EditorPane({
                 </ToolBtn>
               </div>
               <span className="toolbar-sep" aria-hidden />
-              <div ref={fontAnchorRef} className="toolbar-inline-anchor">
-                <ToolBtn
-                  title={t("toolbarFontFamily")}
-                  active={fontMenuOpen}
-                  onClick={() => {
-                    setColorDialogOpen(false);
-                    setHighlightDialogOpen(false);
-                    setHighlightMenuOpen(false);
-                    setFontMenuOpen((open) => !open);
-                    setColorMenuOpen(false);
-                  }}
-                >
-                  <Type size={16} />
-                </ToolBtn>
-              </div>
-              <div ref={colorAnchorRef} className="toolbar-inline-anchor">
+              <div className="toolbar-font-color-tour">
+                <div ref={fontAnchorRef} className="toolbar-inline-anchor">
+                  <ToolBtn
+                    title={t("toolbarFontFamily")}
+                    active={fontMenuOpen}
+                    onClick={() => {
+                      setColorDialogOpen(false);
+                      setHighlightDialogOpen(false);
+                      setHighlightMenuOpen(false);
+                      setFontMenuOpen((open) => !open);
+                      setColorMenuOpen(false);
+                    }}
+                  >
+                    <Type size={16} />
+                  </ToolBtn>
+                </div>
+                <div ref={colorAnchorRef} className="toolbar-inline-anchor">
                 <div
                   className={["toolbar-font-color-split", "tool", colorMenuOpen || colorDialogOpen ? "active" : ""]
                     .filter(Boolean)
@@ -980,12 +1102,7 @@ export function EditorPane({
                     <ChevronDown size={14} strokeWidth={2} aria-hidden />
                   </button>
                 </div>
-              </div>
-              <span className="toolbar-sep" aria-hidden />
-              <div className="toolbar-group">
-                <ToolBtn title={t("toolbarCode")} active={editor?.isActive("code")} onClick={() => chain()?.toggleCode().run()}>
-                  <Code size={15} />
-                </ToolBtn>
+                </div>
                 <div ref={highlightAnchorRef} className="toolbar-inline-anchor">
                   <div
                     className={[
@@ -1041,6 +1158,12 @@ export function EditorPane({
                     </button>
                   </div>
                 </div>
+              </div>
+              <span className="toolbar-sep" aria-hidden />
+              <div className="toolbar-group">
+                <ToolBtn title={t("toolbarCode")} active={editor?.isActive("code")} onClick={() => chain()?.toggleCode().run()}>
+                  <Code size={15} />
+                </ToolBtn>
                 <ToolBtn title={t("toolbarSuperscript")} active={editor?.isActive("superscript")} onClick={() => chain()?.toggleSuperscript().run()}>
                   <SupIcon size={16} />
                 </ToolBtn>
@@ -1169,6 +1292,8 @@ export function EditorPane({
                       setColorDialogOpen(false);
                       setHighlightMenuOpen(false);
                       setHighlightDialogOpen(false);
+                      setTableBgMenuOpen(false);
+                      setTableBgDialogOpen(false);
                       setTablePickerOpen((v) => {
                         const next = !v;
                         if (next) setTablePickerHover({ r: 3, c: 3 });
@@ -1265,13 +1390,13 @@ export function EditorPane({
                   <RotateCcw size={16} />
                 </ToolBtn>
                 <span className="toolbar-sep" aria-hidden />
-                <div ref={tableFillAnchorRef} className="toolbar-inline-anchor">
+                <div ref={tableBgAnchorRef} className="toolbar-inline-anchor">
                   <div
                     className={[
                       "toolbar-font-color-split",
-                      "toolbar-font-color-split--marker",
+                      "toolbar-font-color-split--table-bg",
                       "tool",
-                      tableFillMenuOpen || tableFillDialogOpen ? "active" : ""
+                      tableBgMenuOpen || tableBgDialogOpen ? "active" : ""
                     ]
                       .filter(Boolean)
                       .join(" ")}
@@ -1279,21 +1404,21 @@ export function EditorPane({
                     <button
                       type="button"
                       className="toolbar-font-color-split__apply"
-                      title={t("toolbarTableFillApply")}
-                      aria-label={t("toolbarTableFillApply")}
+                      title={t("toolbarTableBgApply")}
+                      aria-label={t("toolbarTableBgApply")}
                       disabled={!tableUi?.inTable}
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                        setTableFillDialogOpen(false);
-                        setTableFillMenuOpen(false);
-                        chain()?.setCellAttribute("backgroundColor", effectiveTableCellBg).run();
+                        setTableBgDialogOpen(false);
+                        setTableBgMenuOpen(false);
+                        chain()?.setCellAttribute("backgroundColor", effectiveTableBgColor).run();
                       }}
                     >
                       <span className="toolbar-font-color-trigger__core">
                         <PaintBucket className="toolbar-font-color-trigger__marker-icon" size={15} strokeWidth={2} aria-hidden />
                         <span
                           className="toolbar-font-color-trigger__bar"
-                          style={{ backgroundColor: effectiveTableCellBg }}
+                          style={{ backgroundColor: effectiveTableBgColor }}
                           aria-hidden
                         />
                       </span>
@@ -1301,24 +1426,28 @@ export function EditorPane({
                     <button
                       type="button"
                       className="toolbar-font-color-split__menu"
-                      title={t("toolbarTableFillOpenPalette")}
-                      aria-label={t("toolbarTableFillOpenPalette")}
-                      aria-expanded={tableFillMenuOpen}
+                      title={t("toolbarTableBgOpenPalette")}
+                      aria-label={t("toolbarTableBgOpenPalette")}
+                      aria-expanded={tableBgMenuOpen}
                       aria-haspopup="listbox"
                       disabled={!tableUi?.inTable}
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                        setTableFillDialogOpen(false);
-                        setTableFillMenuOpen((open) => !open);
+                        setTableBgDialogOpen(false);
+                        setEmojiOpen(false);
                         setFontMenuOpen(false);
                         setColorMenuOpen(false);
+                        setColorDialogOpen(false);
                         setHighlightMenuOpen(false);
+                        setHighlightDialogOpen(false);
+                        setTableBgMenuOpen((open) => !open);
                       }}
                     >
                       <ChevronDown size={14} strokeWidth={2} aria-hidden />
                     </button>
                   </div>
                 </div>
+                <span className="toolbar-sep" aria-hidden />
                 <ToolBtn title={t("toolbarTableDelete")} onClick={() => chain()?.deleteTable().run()} disabled={!editor?.can().deleteTable()}>
                   <XCircle size={16} />
                 </ToolBtn>
@@ -1326,6 +1455,20 @@ export function EditorPane({
             </div>
           </div>
           <div className="toolbar-actions">
+            {isDeveloperBuild() ? (
+              <button
+                type="button"
+                className="ghost tool--md-export"
+                title={node.kind === "log" ? t("toolbarExportMarkdown") : t("exportMarkdownFolderHint")}
+                disabled={!canExportMarkdown}
+                onClick={() => void handleExportMarkdown()}
+              >
+                <span className="toolbar-md-export-icon" aria-hidden>
+                  <span className="toolbar-md-export-icon__label">MD</span>
+                  <span className="toolbar-md-export-icon__arrow">↓</span>
+                </span>
+              </button>
+            ) : null}
             <button type="button" className="ghost" onClick={onPreviewToggle}>
               {preview ? t("modeEdit") : t("modePreview")}
             </button>
@@ -1378,7 +1521,9 @@ export function EditorPane({
             <div className="ProseMirror" dangerouslySetInnerHTML={{ __html: editor?.getHTML() ?? "" }} />
           </div>
         ) : (
-          <EditorContent editor={editor} className="rich-editor" />
+          <div className="editor-rich-wrap">
+            <EditorContent editor={editor} className="rich-editor" />
+          </div>
         )}
         <footer className="document-status-foot" title={node.updatedAt}>
           <div className="document-status-foot__row">
@@ -1635,34 +1780,36 @@ export function EditorPane({
             document.body
           )
         : null}
-      {tableFillMenuOpen && tableFillMenuPos
+      {tableBgMenuOpen && tableBgMenuPos
         ? createPortal(
             <div
-              ref={tableFillMenuRef}
-              className="toolbar-color-palette-popover toolbar-dropdown-popover--portal"
-              style={{ top: tableFillMenuPos.top, left: tableFillMenuPos.left, width: COLOR_MENU_W }}
+              ref={tableBgMenuRef}
+              className="toolbar-color-palette-popover toolbar-color-palette-popover--table-bg toolbar-dropdown-popover--portal"
+              style={{ top: tableBgMenuPos.top, left: tableBgMenuPos.left, width: TABLE_BG_MENU_W }}
               role="listbox"
-              aria-label={t("toolbarTableFill")}
+              aria-label={t("toolbarTableBg")}
             >
               <div className="toolbar-color-palette-popover__row1" role="presentation">
                 <button
                   type="button"
                   className={[
                     "toolbar-color-palette-swatch",
-                    "toolbar-color-palette-swatch--clear",
-                    tableCellBgClearSelected ? "toolbar-color-palette-swatch--active" : ""
+                    "toolbar-color-palette-swatch--reset",
+                    tableBgClearSelected ? "toolbar-color-palette-swatch--active" : ""
                   ]
                     .filter(Boolean)
                     .join(" ")}
-                  aria-label={t("toolbarTableFillClear")}
-                  title={t("toolbarTableFillClear")}
+                  style={{ backgroundColor: DEFAULT_TABLE_BG_COLOR }}
+                  aria-label={t("toolbarTableBgClear")}
+                  title={t("toolbarTableBgClear")}
                   onClick={() => {
                     chain()?.setCellAttribute("backgroundColor", null).run();
-                    setTableFillMenuOpen(false);
+                    setTableBgMenuOpen(false);
                   }}
                 />
-                {TABLE_CELL_BG_PRESETS.map((presetHex) => {
-                  const selected = !!tableCellBgNorm && tableCellBgNorm === presetHex.toLowerCase();
+                {TABLE_BG_PRESETS.map((presetHex) => {
+                  const selected =
+                    !!tableBgColorNorm && tableBgColorNorm === presetHex.toLowerCase() && !tableBgClearSelected;
                   return (
                     <button
                       key={presetHex}
@@ -1676,7 +1823,7 @@ export function EditorPane({
                       style={{ backgroundColor: presetHex }}
                       onClick={() => {
                         chain()?.setCellAttribute("backgroundColor", presetHex).run();
-                        setTableFillMenuOpen(false);
+                        setTableBgMenuOpen(false);
                       }}
                     />
                   );
@@ -1686,17 +1833,31 @@ export function EditorPane({
                 type="button"
                 className="toolbar-color-palette-popover__row2"
                 onClick={() => {
-                  setTableFillMenuOpen(false);
-                  setTableFillDialogOpen(true);
+                  setTableBgMenuOpen(false);
+                  setTableBgDialogOpen(true);
                 }}
               >
                 <Pipette size={16} strokeWidth={2} className="toolbar-color-palette-popover__row2-icon" aria-hidden />
-                <span>{t("toolbarTableFillCustom")}</span>
+                <span>{t("toolbarTableBgCustom")}</span>
               </button>
             </div>,
             document.body
           )
         : null}
+      <TextColorDialog
+        open={tableBgDialogOpen}
+        initialHex={
+          tableUi?.cellBackgroundColor && isHexColor(tableUi.cellBackgroundColor)
+            ? tableUi.cellBackgroundColor
+            : DEFAULT_TABLE_BG_COLOR
+        }
+        titleKey="dialogTableBgColorTitle"
+        headerId="table-bg-color-dialog-title"
+        onClose={() => setTableBgDialogOpen(false)}
+        onConfirm={(hex) => {
+          chain()?.setCellAttribute("backgroundColor", hex).run();
+        }}
+      />
       <TextColorDialog
         open={colorDialogOpen}
         initialHex={styleAttrs?.color && isHexColor(styleAttrs.color) ? styleAttrs.color : DEFAULT_TEXT_COLOR}
@@ -1716,20 +1877,6 @@ export function EditorPane({
         onClose={() => setHighlightDialogOpen(false)}
         onConfirm={(hex) => {
           chain()?.setHighlight({ color: hex }).run();
-        }}
-      />
-      <TextColorDialog
-        open={tableFillDialogOpen}
-        initialHex={
-          tableUi?.cellBackgroundColor && isHexColor(tableUi.cellBackgroundColor)
-            ? tableUi.cellBackgroundColor
-            : DEFAULT_TABLE_CELL_BG
-        }
-        titleKey="dialogTableFillColorTitle"
-        headerId="table-fill-color-dialog-title"
-        onClose={() => setTableFillDialogOpen(false)}
-        onConfirm={(hex) => {
-          chain()?.setCellAttribute("backgroundColor", hex).run();
         }}
       />
       <LinkInsertDialog

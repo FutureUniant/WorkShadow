@@ -6,10 +6,11 @@ import { isTauriRuntime } from "../services/storage";
 /** Tauri 打包用图标（与 `tauri.conf.json` bundle 同源），标题栏用 32px 资源在高分屏下更清晰 */
 import titleBarIconUrl from "../../src-tauri/icons/32x32.png";
 
-export function DesktopTitleBar() {
+export function DesktopTitleBar({ title }: { title?: string }) {
   const { t } = useTranslation();
   const isTauri = isTauriRuntime();
   const [maximized, setMaximized] = useState(false);
+  const displayTitle = title?.trim() || t("appName");
 
   const syncMaximized = useCallback(() => {
     if (!isTauri) return;
@@ -51,7 +52,7 @@ export function DesktopTitleBar() {
         }}
       >
         <img className="desktop-titlebar__logo" src={titleBarIconUrl} alt="" width={22} height={22} decoding="async" />
-        <span className="desktop-titlebar__title">{t("appName")}</span>
+        <span className="desktop-titlebar__title">{displayTitle}</span>
       </div>
       <div className="desktop-titlebar__controls">
         <button

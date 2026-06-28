@@ -42,22 +42,23 @@ WorkShadow 不是替代 Word 或 Notion 的通用文档编辑器，而是面向*
 
 ## 安装版与开发版
 
-**[安装版](https://github.com/FutureUniant/WorkShadow/releases)**（Releases 安装包）与 **[开发版](https://github.com/FutureUniant/WorkShadow/releases)**（`npm run tauri dev` 或下载开发版安装包）核心功能相同，**均免费**。安装版对程序做了专项优化，编辑更**丝滑、流畅**；并额外提供智能补全与新手引导（✅ 有 / ❌ 无）：
+**[安装版](https://github.com/FutureUniant/WorkShadow/releases)**（Releases 安装包）与 **[开发版](https://github.com/FutureUniant/WorkShadow/releases)**（`npm run tauri dev` 或下载开发版安装包）核心功能相同，**均免费**。安装版额外提供本地模型推理、无限日志总结、智能补全等功能增强（✅ 有 / ❌ 无）：
 
 | 对比项 | [开发版](https://github.com/FutureUniant/WorkShadow/releases) | [安装版](https://github.com/FutureUniant/WorkShadow/releases) | 备注 |
 |--------|:------:|:------:|------|
 | 费用 | 🆓 | 🆓 | |
 | 核心功能 | ✅ | ✅ | |
-| 编辑性能优化 | ❌ | ✅ | 更丝滑、流畅的编辑体验 |
-| 更友好、更美观的 UI 交互界面 | ❌ | ✅ | 更顺手的日常使用体验 |
-| 图像复制、拖拽 | ❌ | ✅ | 支持粘贴 / 拖拽插入图片 |
-| 智能补全 | ❌ | ✅ | 本地，越用越智能 |
-| 新手引导 | ❌ | ✅ | |
 | 数据在本地 | ✅ | ✅ | |
+| 更友好、更美观的 UI 交互 | ❌ | ✅ | 界面更精致，日常操作更顺手 |
+| 本地模型推理 | ❌ | ✅ | 内置本地模型，总结/问答无需自备付费 API |
+| 无限日志总结 | ❌ | ✅ | 不限勾选篇数与单篇长度，一次即可总结 |
+| 支持代码语法块 | ❌ | ✅ | 代码块按编程语言自动语法高亮 |
+| 支持自定义字体 | ❌ | ✅ | 工具栏为正文选择不同字体 |
+| 智能补全 | ❌ | ✅ | 本机学习续写建议，不上传日志正文 |
 | 获取 | [下载](https://github.com/FutureUniant/WorkShadow/releases) / 源码启动 | [下载](https://github.com/FutureUniant/WorkShadow/releases) | |
 | 适合 | 开发调试 | 日常使用 | |
 
-补全与引导均在本地学习，不上传日志；AI 能力由你在设置中自行配置。
+本地模型推理在设备端运行，无需再支付大模型调用费用；其余 AI 能力仍可在设置中自行配置。
 
 ---
 

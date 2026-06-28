@@ -1,105 +1,73 @@
 import { describe, expect, it } from "vitest";
 import {
-  emptyModelConfig,
-  isProfileMeaningfullyStored,
-  loadModelSlot,
+  coerceSingleModelProfile,
   normalizeModelProfiles,
+  sanitizeModelProfiles,
   switchModelProviderProfile,
   upsertModelProfile
 } from "./modelProfiles";
 
-describe("loadModelSlot", () => {
-  it("migrates legacy flat config", () => {
-    const slot = loadModelSlot({
+describe("modelProfiles", () => {
+  it("migrates active config into profiles on load", () => {
+    const profiles = normalizeModelProfiles(undefined, {
+      provider: "deepseek",
       baseUrl: "https://api.deepseek.com/v1",
       apiKey: "sk-test",
       model: "deepseek-chat"
     });
-    expect(slot.active.model).toBe("deepseek-chat");
-    expect(slot.profiles.deepseek?.apiKey).toBe("sk-test");
+    expect(profiles.deepseek?.model).toBe("deepseek-chat");
   });
 
-  it("migrates nested activeProvider + configs", () => {
-    const slot = loadModelSlot({
-      activeProvider: "aliyun",
-      configs: {
-        deepseek: { baseUrl: "https://api.deepseek.com/v1", apiKey: "a", model: "deepseek-chat" },
-        aliyun: {
-          baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-          apiKey: "b",
-          model: "qwen-plus"
-        }
-      }
-    });
-    expect(slot.active.model).toBe("qwen-plus");
-    expect(slot.profiles.deepseek?.apiKey).toBe("a");
-  });
-});
-
-describe("switchModelProviderProfile", () => {
-  it("does not persist preset-only browse into profiles", () => {
+  it("keeps separate records per provider when switching", () => {
+    let profiles = {};
     const deepseek = {
       provider: "deepseek" as const,
       baseUrl: "https://api.deepseek.com/v1",
-      apiKey: "sk-x",
+      apiKey: "ds-key",
       model: "deepseek-chat"
     };
-    const profiles = upsertModelProfile({}, deepseek);
-    const { config, profiles: afterBrowse } = switchModelProviderProfile(profiles, deepseek, "aliyun");
-    expect(config.provider).toBe("aliyun");
-    expect(afterBrowse.aliyun).toBeUndefined();
-    expect(afterBrowse.deepseek?.apiKey).toBe("sk-x");
-  });
-
-  it("keeps both provider entries", () => {
-    let profiles = {};
-    const deepseek = upsertModelProfile(profiles, {
-      provider: "deepseek",
-      baseUrl: "https://api.deepseek.com/v1",
-      apiKey: "d",
-      model: "deepseek-chat"
-    }).deepseek!;
     profiles = upsertModelProfile(profiles, deepseek);
-    const current = deepseek;
-    const { config, profiles: next } = switchModelProviderProfile(profiles, current, "aliyun");
-    const withAliyun = upsertModelProfile(next, {
-      ...config,
-      provider: "aliyun",
-      apiKey: "a",
+
+    const switched = switchModelProviderProfile(profiles, deepseek, "aliyun");
+    profiles = switched.profiles;
+    const aliyun = {
+      provider: "aliyun" as const,
+      baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      apiKey: "ali-key",
       model: "qwen-plus"
-    });
-    const back = switchModelProviderProfile(withAliyun, withAliyun.aliyun!, "deepseek");
-    expect(back.config.apiKey).toBe("d");
+    };
+    profiles = upsertModelProfile(profiles, aliyun);
+
+    const back = switchModelProviderProfile(profiles, aliyun, "deepseek");
+    expect(back.active.apiKey).toBe("ds-key");
+    expect(back.active.model).toBe("deepseek-chat");
     expect(back.profiles.aliyun?.model).toBe("qwen-plus");
   });
-});
 
-describe("isProfileMeaningfullyStored", () => {
-  it("requires api key for remote providers", () => {
-    expect(
-      isProfileMeaningfullyStored({
-        provider: "deepseek",
-        baseUrl: "https://api.deepseek.com/v1",
-        apiKey: "",
-        model: "deepseek-chat"
-      })
-    ).toBe(false);
-    expect(
-      isProfileMeaningfullyStored({
-        provider: "deepseek",
-        baseUrl: "https://api.deepseek.com/v1",
-        apiKey: "sk-1",
-        model: "deepseek-chat"
-      })
-    ).toBe(true);
+  it("keeps only one profile per provider when raw data is an array", () => {
+    const profiles = normalizeModelProfiles({
+      deepseek: [
+        { baseUrl: "https://old.example/v1", apiKey: "old", model: "old-model" },
+        { baseUrl: "https://api.deepseek.com/v1", apiKey: "new", model: "deepseek-chat" }
+      ]
+    });
+    expect(profiles.deepseek?.apiKey).toBe("new");
+    expect(Object.keys(profiles)).toEqual(["deepseek"]);
   });
-});
 
-describe("normalizeModelProfiles", () => {
-  it("uses active when profiles missing", () => {
-    const active = emptyModelConfig("openai");
-    active.apiKey = "k";
-    const profiles = normalizeModelProfiles(undefined, active);
-    expect(profiles.openai?.apiKey).toBe("k");
+  it("sanitize drops unknown provider keys and duplicate aliases", () => {
+    const profiles = sanitizeModelProfiles({
+      deepseek: { baseUrl: "https://api.deepseek.com/v1", apiKey: "k", model: "m" },
+      unknown_vendor: { baseUrl: "x", apiKey: "y", model: "z" }
+    } as never);
+    expect(Object.keys(profiles)).toEqual(["deepseek"]);
+  });
+
+  it("coerceSingleModelProfile returns last array entry", () => {
+    const row = coerceSingleModelProfile([
+      { baseUrl: "a", apiKey: "1", model: "first" },
+      { baseUrl: "b", apiKey: "2", model: "second" }
+    ]);
+    expect(row?.model).toBe("second");
   });
 });

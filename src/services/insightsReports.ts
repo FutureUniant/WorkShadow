@@ -70,13 +70,13 @@ export function buildLogSummaryUserMessage(
     if (parts.preferences.trim()) sections.push(parts.preferences.trim());
     sections.push(`## 所选日志摘录\n${parts.logDigest || "（无内容）"}`);
     const countLabel = parts.logCount > 0 ? `共 ${parts.logCount} 篇` : "0 篇";
-    sections.push(`---\n任务：根据以上长期记忆、写作偏好与日志摘录，生成一份工作总结（本次勾选 ${countLabel}）。`);
+    sections.push(`---\n任务：根据以上长期记忆、写作偏好与日志摘录，生成一份 Markdown 格式的工作总结（本次勾选 ${countLabel}）。`);
   } else {
     sections.push(`## Memory notes\n${parts.memory || "(none)"}`);
     if (parts.preferences.trim()) sections.push(parts.preferences.trim());
     sections.push(`## Selected log excerpts\n${parts.logDigest || "(empty)"}`);
     const countLabel = parts.logCount === 1 ? "1 log" : `${parts.logCount} logs`;
-    sections.push(`---\nTask: From the memory, preferences, and excerpts above, write a work summary (${countLabel} selected).`);
+    sections.push(`---\nTask: From the memory, preferences, and excerpts above, write a Markdown work summary (${countLabel} selected).`);
   }
   return `${sections.join("\n\n")}\n`;
 }

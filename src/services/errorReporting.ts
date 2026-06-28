@@ -27,8 +27,17 @@ export interface ErrorSinkPayload {
   detail: string;
   diagnostics: string;
   logId?: string;
+  /** 弹窗主文案（如云端返回的余额不足说明）；未设置则用 i18n 默认摘要 */
+  userMessage?: string;
+  /** 弹窗主文案 i18n key；优先级低于 userMessage，高于默认摘要 */
+  userMessageKey?: string;
+  /** 弹窗次要说明（i18n key） */
+  userHintKey?: string;
   /** 仅 persist 等场景：用户点击重试时调用 */
   onRetry?: () => void;
+  /** 次要操作按钮文案（i18n key，如前往充值） */
+  actionLabelKey?: string;
+  onAction?: () => void;
   /** success 提示：直接展示文案，不展开详情 */
   noticeTitle?: string;
   noticeSummary?: string;

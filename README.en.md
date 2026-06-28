@@ -42,22 +42,23 @@ WorkShadow is not a general-purpose Word or Notion replacement—it is a **work 
 
 ## Installer vs development build
 
-The **[installer](https://github.com/FutureUniant/WorkShadow/releases)** (Releases package) and **[development build](https://github.com/FutureUniant/WorkShadow/releases)** (`npm run tauri dev` or dev installer) share the same core features and are **both free**. The installer is **optimized for smoother, more fluid editing**; it also adds smart completion and onboarding (✅ yes / ❌ no):
+The **[installer](https://github.com/FutureUniant/WorkShadow/releases)** (Releases package) and **[development build](https://github.com/FutureUniant/WorkShadow/releases)** (`npm run tauri dev` or dev installer) share the same core features and are **both free**. The installer adds on-device model inference, unlimited log summaries, smart completion, and more (✅ yes / ❌ no):
 
 | | [Dev build](https://github.com/FutureUniant/WorkShadow/releases) | [Installer](https://github.com/FutureUniant/WorkShadow/releases) | Notes |
 |---|:---:|:---:|------|
 | Price | 🆓 | 🆓 | |
 | Core features | ✅ | ✅ | |
-| Editing performance | ❌ | ✅ | Smoother, more fluid editing |
-| More user-friendly, more polished UI & interactions | ❌ | ✅ | Smoother day-to-day experience |
-| Image copy/paste & drag-and-drop | ❌ | ✅ | Paste or drag images into the editor |
-| Smart completion | ❌ | ✅ | Local; smarter over time |
-| Onboarding | ❌ | ✅ | |
 | Data on device | ✅ | ✅ | |
+| More polished, user-friendly UI | ❌ | ✅ | Refined layout; smoother day-to-day use |
+| On-device model inference | ❌ | ✅ | Built-in local model—no paid cloud API needed |
+| Unlimited log summaries | ❌ | ✅ | Any number of logs, any length—one pass |
+| Code syntax blocks | ❌ | ✅ | Automatic syntax highlighting by language |
+| Custom fonts | ❌ | ✅ | Choose fonts for body text from the toolbar |
+| Smart completion | ❌ | ✅ | On-device continuations; log bodies stay local |
 | How to run | [Download](https://github.com/FutureUniant/WorkShadow/releases) / from source | [Download](https://github.com/FutureUniant/WorkShadow/releases) | |
 | Best for | Development | Daily use | |
 
-Completion and onboarding learn on your machine—log bodies are not uploaded. AI features are enabled only when you configure models in Settings.
+On-device inference runs locally—no LLM API fees. Other AI features remain configurable in Settings.
 
 ---
 

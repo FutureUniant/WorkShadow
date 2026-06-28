@@ -10,6 +10,7 @@ export type DataBundleExportOptions = {
   generalSettings: boolean;
   modelConfig: boolean;
   shortcuts: boolean;
+  workspacePersonal: boolean;
 };
 
 export const defaultDataBundleExportOptions: DataBundleExportOptions = {
@@ -17,7 +18,8 @@ export const defaultDataBundleExportOptions: DataBundleExportOptions = {
   memory: true,
   generalSettings: true,
   modelConfig: false,
-  shortcuts: true
+  shortcuts: true,
+  workspacePersonal: true
 };
 
 export type DataBundleExportResult = {
@@ -45,7 +47,8 @@ export function anyDataBundleOptionSelected(options: DataBundleExportOptions): b
     options.memory ||
     options.generalSettings ||
     options.modelConfig ||
-    options.shortcuts
+    options.shortcuts ||
+    options.workspacePersonal
   );
 }
 

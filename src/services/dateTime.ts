@@ -46,10 +46,13 @@ async function fetchTimeZoneFromNetwork(signal: AbortSignal): Promise<string | n
 }
 
 /**
- * 解析应用使用的时区：联网时优先按 IP 推断所在地区时区；
- * 离线或失败则用本机时区；仍不可用则北京。
+ * 解析应用使用的时区：优先本机时区（离线可用）；
+ * 仅在无法读取本机时区且联网时再尝试网络推断；仍不可用则北京。
  */
 export async function resolveAppTimeZone(): Promise<string> {
+  const system = getSystemTimeZone();
+  if (system) return system;
+
   if (typeof navigator !== "undefined" && navigator.onLine) {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), NETWORK_TIMEOUT_MS);
@@ -60,7 +63,7 @@ export async function resolveAppTimeZone(): Promise<string> {
       window.clearTimeout(timer);
     }
   }
-  return getSystemTimeZone() ?? BEIJING_TIME_ZONE;
+  return BEIJING_TIME_ZONE;
 }
 
 /** 当前生效的 IANA 时区（需先 initAppTimeZone，否则同步回退本机/北京） */

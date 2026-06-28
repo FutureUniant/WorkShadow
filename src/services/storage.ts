@@ -4,7 +4,7 @@ import type { AppSettings, AppState, LogNode, MemoryEntry, SearchResultOrder } f
 import { normalizeDocumentGenerationPrefs } from "./documentPrefs";
 import { appLog } from "./appLogger";
 import { normalizeLoadedIndexStatus, reportErrorToUser } from "./errorReporting";
-import { loadModelSlot, normalizeModelConfig } from "./modelProfiles";
+import { normalizeModelConfig, normalizeModelProfiles } from "./modelProfiles";
 import { mergeShortcutMap } from "./shortcuts";
 import { getNodePath, repairOrphanParentIds } from "./tree";
 
@@ -24,8 +24,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function mergeLoadedSettings(raw: unknown): AppSettings {
   const s = isPlainObject(raw) ? (raw as Partial<AppSettings>) : {};
-  const llmSlot = loadModelSlot(s.llm, s.llmProfiles);
-  const embeddingSlot = loadModelSlot(s.embedding, s.embeddingProfiles);
+  const llm = normalizeModelConfig(s.llm);
+  const embedding = normalizeModelConfig(s.embedding);
   return {
     ...defaultSettings,
     ...s,
@@ -34,11 +34,11 @@ function mergeLoadedSettings(raw: unknown): AppSettings {
     mediaStrategy: s.mediaStrategy === "embed" || s.mediaStrategy === "reference" ? s.mediaStrategy : defaultSettings.mediaStrategy,
     logDirectory: typeof s.logDirectory === "string" ? s.logDirectory : defaultSettings.logDirectory,
     tempDirectory: typeof s.tempDirectory === "string" ? s.tempDirectory : defaultSettings.tempDirectory,
-    llm: llmSlot.active,
-    llmProfiles: llmSlot.profiles,
+    llm,
+    llmProfiles: normalizeModelProfiles(s.llmProfiles, llm),
     vlm: normalizeModelConfig(s.vlm),
-    embedding: embeddingSlot.active,
-    embeddingProfiles: embeddingSlot.profiles,
+    embedding,
+    embeddingProfiles: normalizeModelProfiles(s.embeddingProfiles, embedding),
     searchResultOrder: normalizeSearchResultOrder(s.searchResultOrder),
     semanticMinSimilarity: normalizeSemanticMinSimilarity(s.semanticMinSimilarity),
     shortcuts: mergeShortcutMap(s.shortcuts)
@@ -108,6 +108,7 @@ function normalizeNodes(raw: unknown): { nodes: LogNode[]; recovered: boolean; r
       parentId: typeof row.parentId === "string" ? row.parentId : null,
       title: typeof row.title === "string" && row.title.trim() ? row.title : `日志 ${index + 1}`,
       kind,
+      sortOrder: typeof row.sortOrder === "number" && Number.isFinite(row.sortOrder) ? row.sortOrder : undefined,
       createdAt: typeof row.createdAt === "string" ? row.createdAt : new Date().toISOString(),
       updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : new Date().toISOString(),
       tiptapJson: normalizeTiptapDoc(row.tiptapJson),

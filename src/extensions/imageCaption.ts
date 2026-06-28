@@ -3,6 +3,8 @@ import Image from "@tiptap/extension-image";
 
 export const ImageCaption = Image.extend({
   name: "image",
+  draggable: true,
+  selectable: true,
   addAttributes() {
     return {
       ...this.parent?.(),
@@ -30,7 +32,7 @@ export const ImageCaption = Image.extend({
       inner.className = "ws-media-image-inner";
 
       const img = document.createElement("img");
-      img.draggable = true;
+      img.draggable = false;
       img.alt = "";
 
       const handle = document.createElement("div");
@@ -160,7 +162,7 @@ export const ImageCaption = Image.extend({
       "img",
       mergeAttributes(HTMLAttributes, {
         alt: "",
-        draggable: true,
+        draggable: false,
         style: "display:block;width:100%;height:auto;border-radius:12px;vertical-align:bottom;"
       })
     ];

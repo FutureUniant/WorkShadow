@@ -1,12 +1,11 @@
 import type { TFunction } from "i18next";
-import type { AppSettings, ConfirmOptions, ModelConfig } from "../types";
-import { isModelConfigReady } from "./openaiCompat";
-import { modelConfigEqual } from "./modelProfiles";
+import type { ConfirmOptions, ModelConfig } from "../types";
+import { normalizeModelProvider } from "./modelProviders";
 import { testEmbeddingConfig } from "./modelTest";
 
 export function normalizeEmbeddingConfig(config: ModelConfig): ModelConfig {
   return {
-    provider: config.provider,
+    provider: normalizeModelProvider(config.provider),
     baseUrl: config.baseUrl.trim(),
     apiKey: config.apiKey.trim(),
     model: config.model.trim()
@@ -14,13 +13,18 @@ export function normalizeEmbeddingConfig(config: ModelConfig): ModelConfig {
 }
 
 export function isEmbeddingConfigComplete(config: ModelConfig): boolean {
-  return isModelConfigReady(normalizeEmbeddingConfig(config));
+  const n = normalizeEmbeddingConfig(config);
+  return Boolean(n.baseUrl && n.apiKey && n.model);
 }
 
-export function embeddingSettingsEqual(a: AppSettings, b: AppSettings): boolean {
+export function embeddingConfigEqual(a: ModelConfig, b: ModelConfig): boolean {
+  const left = normalizeEmbeddingConfig(a);
+  const right = normalizeEmbeddingConfig(b);
   return (
-    modelConfigEqual(a.embedding, b.embedding) &&
-    JSON.stringify(a.embeddingProfiles ?? {}) === JSON.stringify(b.embeddingProfiles ?? {})
+    left.provider === right.provider &&
+    left.baseUrl === right.baseUrl &&
+    left.apiKey === right.apiKey &&
+    left.model === right.model
   );
 }
 
@@ -28,31 +32,31 @@ export type EmbeddingCommitResult =
   | { applied: true; needsVectorRebuild: boolean }
   | { applied: false; reason: "unchanged" | "cancelled" | "testFailed" };
 
+/**
+ * 校验并决定是否应用嵌入配置变更：模型名变更确认、连接测试、失败回滚。
+ */
 export async function commitEmbeddingConfigChange(params: {
-  previous: Pick<AppSettings, "embedding" | "embeddingProfiles">;
-  next: Pick<AppSettings, "embedding" | "embeddingProfiles">;
+  previous: ModelConfig;
+  next: ModelConfig;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
   t: TFunction;
   onTestFailed?: (message: string) => void;
 }): Promise<EmbeddingCommitResult> {
   const { previous, next, confirm, t, onTestFailed } = params;
-  const prevActive = normalizeEmbeddingConfig(previous.embedding);
-  const nextActive = normalizeEmbeddingConfig(next.embedding);
+  const prev = normalizeEmbeddingConfig(previous);
+  const draft = normalizeEmbeddingConfig(next);
 
-  if (modelConfigEqual(prevActive, nextActive) && JSON.stringify(previous.embeddingProfiles) === JSON.stringify(next.embeddingProfiles)) {
+  if (embeddingConfigEqual(prev, draft)) {
     return { applied: false, reason: "unchanged" };
   }
 
-  const prevComplete = isEmbeddingConfigComplete(prevActive);
-  const nextComplete = isEmbeddingConfigComplete(nextActive);
-  const modelChanged = prevActive.model !== nextActive.model;
-  const connectionChanged =
-    (prevActive.provider ?? "openaiCompatible") !== (nextActive.provider ?? "openaiCompatible") ||
-    prevActive.baseUrl !== nextActive.baseUrl ||
-    prevActive.apiKey !== nextActive.apiKey ||
-    modelChanged;
+  const prevComplete = isEmbeddingConfigComplete(previous);
+  const nextComplete = isEmbeddingConfigComplete(next);
+  const modelChanged = prev.model !== draft.model;
+  const providerChanged = prev.provider !== draft.provider;
+  const connectionChanged = providerChanged || prev.baseUrl !== draft.baseUrl || prev.apiKey !== draft.apiKey || modelChanged;
 
-  if (modelChanged && prevComplete && nextActive.model !== prevActive.model) {
+  if (modelChanged && prevComplete && draft.model !== prev.model) {
     const ok = await confirm({
       title: t("embeddingModelChangeTitle"),
       message: t("embeddingModelChangeMessage")
@@ -62,7 +66,7 @@ export async function commitEmbeddingConfigChange(params: {
 
   if (connectionChanged && nextComplete) {
     try {
-      await testEmbeddingConfig(nextActive);
+      await testEmbeddingConfig(next);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       onTestFailed?.(message);
@@ -70,6 +74,6 @@ export async function commitEmbeddingConfigChange(params: {
     }
   }
 
-  const needsVectorRebuild = Boolean(modelChanged && prevComplete && nextComplete && nextActive.model !== prevActive.model);
+  const needsVectorRebuild = Boolean((providerChanged || modelChanged) && prevComplete && nextComplete);
   return { applied: true, needsVectorRebuild };
 }

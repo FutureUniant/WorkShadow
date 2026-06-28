@@ -1,5 +1,4 @@
 import { defaultShortcutMap } from "./services/shortcuts";
-import { emptyModelConfig } from "./services/modelProfiles";
 import type { AppSettings, AppState, LogNode } from "./types";
 
 const now = new Date().toISOString();
@@ -16,10 +15,10 @@ export const defaultSettings: AppSettings = {
   logDirectory: "",
   tempDirectory: "",
   mediaStrategy: "reference",
-  llm: emptyModelConfig(),
+  llm: { provider: "openaiCompatible", baseUrl: "", apiKey: "", model: "" },
   llmProfiles: {},
-  vlm: emptyModelConfig(),
-  embedding: emptyModelConfig(),
+  vlm: { provider: "openaiCompatible", baseUrl: "", apiKey: "", model: "" },
+  embedding: { provider: "openaiCompatible", baseUrl: "", apiKey: "", model: "" },
   embeddingProfiles: {},
   searchResultOrder: "combined",
   semanticMinSimilarity: 0.55,

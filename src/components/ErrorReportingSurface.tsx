@@ -224,7 +224,6 @@ export function ErrorReportingSurface({ children }: { children: React.ReactNode 
       {alertPayload ? (
         <div
           className={`modal-backdrop${isWarningModal ? " modal-backdrop--warning" : " modal-backdrop--error"}`}
-          style={{ zIndex: 50 }}
         >
           <section
             className={`modal-card modal-card--wide error-report-modal${isWarningModal ? " error-report-modal--warning" : ""}`}
@@ -236,7 +235,13 @@ export function ErrorReportingSurface({ children }: { children: React.ReactNode 
               <span className={isWarningModal ? "warning-severity-dot" : "error-severity-dot"} aria-hidden />
               <h2 id="error-report-title">{t(ERR_KEYS[alertPayload.context].title)}</h2>
             </div>
-            <p className="error-report-modal__summary">{t(ERR_KEYS[alertPayload.context].summary)}</p>
+            <p className="error-report-modal__summary">
+              {alertPayload.userMessage?.trim() ||
+                (alertPayload.userMessageKey ? t(alertPayload.userMessageKey) : t(ERR_KEYS[alertPayload.context].summary))}
+            </p>
+            {alertPayload.userHintKey ? (
+              <p className="error-report-modal__hint">{t(alertPayload.userHintKey)}</p>
+            ) : null}
             {!isWarningModal ? (
               <>
                 {!detailOpen ? <p className="error-report-modal__hint">{t("errorReportCollapsedHint")}</p> : null}
@@ -268,6 +273,19 @@ export function ErrorReportingSurface({ children }: { children: React.ReactNode 
                   }}
                 >
                   {t("retry")}
+                </button>
+              ) : null}
+              {alertPayload.actionLabelKey && alertPayload.onAction ? (
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => {
+                    const fn = alertPayload.onAction;
+                    setAlertPayload(null);
+                    fn?.();
+                  }}
+                >
+                  {t(alertPayload.actionLabelKey)}
                 </button>
               ) : null}
               <button type="button" className="primary" onClick={() => setAlertPayload(null)}>

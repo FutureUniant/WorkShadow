@@ -1,83 +1,137 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, ClipboardList, FileText, Folder, Pencil, Sparkles, Trash2, X } from "lucide-react";
-import type { AppSettings, DocumentGenerationPref, LogNode, MemoryEntry } from "../types";
+import type { DocumentGenerationPref, LogNode, MemoryEntry } from "../types";
 import {
   DOC_PREF_LOG_SUMMARY,
   getLogSummaryPref,
   upsertDocumentPref
 } from "../services/documentPrefs";
-import { generateLogSummary } from "../services/insightsReports";
-import type { AskLogsFromRagCallbacks, LogQaRetrievedExcerpt, LogQaSource } from "../services/logQa";
-import { isLlmInputTooLongError } from "../services/llmInputLimits";
+import type { ReportStylePreferences } from "../services/insightsReports";
+import type { LogQaRetrievedExcerpt, LogQaSource } from "../services/logQa";
 import { reportErrorToUser } from "../services/errorReporting";
-import { isLocaleZhFromSettings } from "../services/appLocale";
-import { collectDescendantLogIds, getChildrenSorted, listAllLogIds } from "../services/tree";
+import { collectLogIdsInSubtree, getChildrenSorted, getPathTitle, listLogNodesByUpdatedDesc } from "../services/tree";
 import { WorkspaceMarkdown } from "./WorkspaceMarkdown";
+
+export type WorkspaceTab = "summary" | "ask" | "memory";
+export type WorkspaceAskPhase = "idle" | "retrieving" | "answering";
+type LogCheckState = "checked" | "indeterminate" | "unchecked";
 
 interface Props {
   open: boolean;
   onClose: () => void;
+  tab: WorkspaceTab;
+  onTabChange: (tab: WorkspaceTab) => void;
+  /** 引导 tour 时强制切换的标签 */
+  tourTab?: WorkspaceTab | null;
+  /** 引导进行中禁止关闭抽屉 */
+  lockClose?: boolean;
   activeLogId: string | null;
   memoryEntries: MemoryEntry[];
   onMemoryChange: (next: MemoryEntry[]) => void;
   documentGenerationPrefs: DocumentGenerationPref[];
   onDocumentGenerationPrefsChange: (next: DocumentGenerationPref[]) => void;
   nodes: LogNode[];
-  settings: AppSettings;
-  onAskLogs: (question: string, callbacks?: AskLogsFromRagCallbacks) => Promise<unknown>;
+  reportOut: string;
+  reportBusy: boolean;
+  reportInputError: string | null;
+  onRunSummary: (logIds: string[], preferences: ReportStylePreferences) => void;
+  askQuestion: string;
+  askAnswer: string;
+  askSources: LogQaSource[];
+  askExcerpts: LogQaRetrievedExcerpt[];
+  askPhase: WorkspaceAskPhase;
+  onAskQuestionChange: (question: string) => void;
+  onRunAsk: (question: string) => void;
   onOpenLog?: (logId: string) => void;
 }
 
-type WorkspaceTab = "summary" | "ask" | "memory";
+function getLogCheckState(nodes: LogNode[], nodeId: string, selectedLogIds: string[]): LogCheckState {
+  const subtreeLogIds = collectLogIdsInSubtree(nodes, nodeId);
+  if (!subtreeLogIds.length) return "unchecked";
+  const selectedCount = subtreeLogIds.filter((id) => selectedLogIds.includes(id)).length;
+  if (selectedCount === 0) return "unchecked";
+  if (selectedCount === subtreeLogIds.length) return "checked";
+  return "indeterminate";
+}
+
+function LogPickCheckbox({
+  checkState,
+  disabled,
+  onToggle
+}: {
+  checkState: LogCheckState;
+  disabled?: boolean;
+  onToggle: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = inputRef.current;
+    if (el) el.indeterminate = checkState === "indeterminate";
+  }, [checkState]);
+  return (
+    <input
+      ref={inputRef}
+      type="checkbox"
+      checked={checkState === "checked"}
+      disabled={disabled}
+      onChange={onToggle}
+    />
+  );
+}
 
 export function WorkspaceDrawer({
   open,
   onClose,
+  tab,
+  onTabChange,
+  tourTab = null,
+  lockClose = false,
   activeLogId,
   memoryEntries,
   onMemoryChange,
   documentGenerationPrefs,
   onDocumentGenerationPrefsChange,
   nodes,
-  settings,
-  onAskLogs,
+  reportOut,
+  reportBusy,
+  reportInputError,
+  onRunSummary,
+  askQuestion,
+  askAnswer,
+  askSources,
+  askExcerpts,
+  askPhase,
+  onAskQuestionChange,
+  onRunAsk,
   onOpenLog
 }: Props) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<WorkspaceTab>("summary");
+  const activeTab = tourTab ?? tab;
   const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
-  const [reportOut, setReportOut] = useState("");
-  const [reportBusy, setReportBusy] = useState(false);
-  const [reportInputError, setReportInputError] = useState<string | null>(null);
-  const [askQuestion, setAskQuestion] = useState("");
-  const [askAnswer, setAskAnswer] = useState("");
-  const [askSources, setAskSources] = useState<LogQaSource[]>([]);
-  const [askExcerpts, setAskExcerpts] = useState<LogQaRetrievedExcerpt[]>([]);
-  const [askPhase, setAskPhase] = useState<"idle" | "retrieving" | "answering">("idle");
+  const [logPickExpandedIds, setLogPickExpandedIds] = useState<string[]>([]);
   const reportOutRef = useRef<HTMLDivElement>(null);
   const askAnswerRef = useRef<HTMLDivElement>(null);
   const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
   const [memoryDraft, setMemoryDraft] = useState({ title: "", body: "" });
-  const [expandedIds, setExpandedIds] = useState<string[]>([]);
 
-  const localeZh = isLocaleZhFromSettings(settings);
   const sortedMemoryEntries = useMemo(
     () => [...memoryEntries].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)),
     [memoryEntries]
   );
   const { focus, style } = getLogSummaryPref(documentGenerationPrefs);
 
-  const allLogIds = useMemo(() => listAllLogIds(nodes), [nodes]);
-  const branchIds = useMemo(
+  const logNodes = useMemo(() => listLogNodesByUpdatedDesc(nodes), [nodes]);
+
+  const logPickBranchIds = useMemo(
     () => nodes.filter((n) => nodes.some((c) => c.parentId === n.id)).map((n) => n.id),
     [nodes]
   );
 
   useEffect(() => {
     if (!open) return;
-    setExpandedIds(branchIds.length ? [...branchIds] : []);
-  }, [open, branchIds]);
+    setLogPickExpandedIds(logPickBranchIds.length ? [...logPickBranchIds] : []);
+  }, [open, logPickBranchIds]);
 
   useEffect(() => {
     if (!open || !activeLogId) return;
@@ -87,8 +141,8 @@ export function WorkspaceDrawer({
   }, [open, activeLogId, nodes]);
 
   useEffect(() => {
-    if (tab !== "memory") setEditingMemoryId(null);
-  }, [tab]);
+    if (activeTab !== "memory") setEditingMemoryId(null);
+  }, [activeTab]);
 
   const askBusy = askPhase !== "idle";
 
@@ -148,110 +202,79 @@ export function WorkspaceDrawer({
     if (editingMemoryId === id) setEditingMemoryId(null);
   }
 
-  function toggleExpanded(id: string) {
-    setExpandedIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  function toggleLogPickExpanded(id: string) {
+    setLogPickExpandedIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   }
 
-  function toggleLogTreeNode(id: string) {
-    const descendantLogIds = collectDescendantLogIds(nodes, id);
-    if (!descendantLogIds.length) return;
-    const allSelected = descendantLogIds.every((logId) => selectedLogIds.includes(logId));
+  function toggleLogSubtree(id: string) {
+    const subtreeLogIds = collectLogIdsInSubtree(nodes, id);
+    if (!subtreeLogIds.length) return;
     setSelectedLogIds((prev) => {
-      if (allSelected) {
-        const remove = new Set(descendantLogIds);
-        return prev.filter((x) => !remove.has(x));
-      }
-      return [...new Set([...prev, ...descendantLogIds])];
+      const allSelected = subtreeLogIds.every((logId) => prev.includes(logId));
+      if (allSelected) return prev.filter((x) => !subtreeLogIds.includes(x));
+      return [...new Set([...prev, ...subtreeLogIds])];
     });
   }
 
-  function selectAllLogs() {
-    setSelectedLogIds(allLogIds);
-  }
-
-  function clearLogSelection() {
-    setSelectedLogIds([]);
-  }
-
-  function renderLogPickTree(parentId: string | null, depth: number): React.ReactNode {
+  function renderLogPickTree(parentId: string | null, depth: number) {
     return getChildrenSorted(nodes, parentId).map((node) => {
       const children = getChildrenSorted(nodes, node.id);
       const hasChildren = children.length > 0;
-      const expanded = expandedIds.includes(node.id);
-      const descendantLogIds = collectDescendantLogIds(nodes, node.id);
-      const checked =
-        descendantLogIds.length > 0 && descendantLogIds.every((logId) => selectedLogIds.includes(logId));
-      const indeterminate =
-        !checked && descendantLogIds.some((logId) => selectedLogIds.includes(logId));
-      const noLogs = descendantLogIds.length === 0;
-
+      const expanded = logPickExpandedIds.includes(node.id);
+      const checkState = getLogCheckState(nodes, node.id, selectedLogIds);
+      const subtreeLogIds = collectLogIdsInSubtree(nodes, node.id);
+      const selectable = subtreeLogIds.length > 0;
       return (
-        <li key={node.id} className="workspace-log-pick__tree-node">
-          <div className="workspace-log-pick__tree-row" style={{ paddingLeft: depth * 16 }}>
+        <div key={node.id}>
+          <div className="workspace-log-pick__tree-row" style={{ paddingLeft: 8 + depth * 16 }}>
             <button
               type="button"
               className="icon-button workspace-log-pick__chevron"
-              onClick={() => toggleExpanded(node.id)}
+              onClick={() => toggleLogPickExpanded(node.id)}
               aria-label="toggle"
               disabled={!hasChildren}
             >
               {hasChildren ? (
-                expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />
+                expanded ? (
+                  <ChevronDown size={16} />
+                ) : (
+                  <ChevronRight size={16} />
+                )
               ) : (
                 <span className="spacer" />
               )}
             </button>
-            <label className={`workspace-log-pick__item${checked ? " is-checked" : ""}`}>
-              <input
-                type="checkbox"
-                checked={checked}
-                disabled={noLogs}
-                ref={(el) => {
-                  if (el) el.indeterminate = indeterminate;
-                }}
-                onChange={() => toggleLogTreeNode(node.id)}
+            <label className={`workspace-log-pick__item workspace-log-pick__tree-item${checkState === "checked" ? " is-checked" : ""}`}>
+              <LogPickCheckbox
+                checkState={checkState}
+                disabled={!selectable}
+                onToggle={() => toggleLogSubtree(node.id)}
               />
               {hasChildren ? (
                 <Folder size={16} className="workspace-log-pick__icon" aria-hidden />
               ) : (
                 <FileText size={16} className="workspace-log-pick__icon" aria-hidden />
               )}
-              <span className="workspace-log-pick__item-text">
-                <span className="workspace-log-pick__title">{node.title}</span>
-              </span>
+              <span className="workspace-log-pick__title">{node.title}</span>
             </label>
           </div>
-          {hasChildren && expanded ? (
-            <ul className="workspace-log-pick__tree-children">{renderLogPickTree(node.id, depth + 1)}</ul>
-          ) : null}
-        </li>
+          {hasChildren && expanded ? renderLogPickTree(node.id, depth + 1) : null}
+        </div>
       );
     });
   }
 
-  async function runSummary() {
+  function selectAllLogs() {
+    setSelectedLogIds(logNodes.map((n) => n.id));
+  }
+
+  function clearLogSelection() {
+    setSelectedLogIds([]);
+  }
+
+  function runSummary() {
     if (!selectedLogIds.length) return;
-    setReportBusy(true);
-    setReportOut("");
-    setReportInputError(null);
-    try {
-      await generateLogSummary(settings, {
-        logIds: selectedLogIds,
-        nodes,
-        memory: memoryEntries,
-        localeZh,
-        preferences: { focus, style },
-        onDelta: (delta) => setReportOut((prev) => prev + delta)
-      });
-    } catch (e) {
-      if (isLlmInputTooLongError(e)) {
-        setReportInputError(t("workspaceSummaryInputTooLong"));
-      } else {
-        reportErrorToUser("report", e);
-      }
-    } finally {
-      setReportBusy(false);
-    }
+    onRunSummary(selectedLogIds, { focus, style });
   }
 
   async function copyReport() {
@@ -267,27 +290,10 @@ export function WorkspaceDrawer({
     onDocumentGenerationPrefsChange(upsertDocumentPref(documentGenerationPrefs, DOC_PREF_LOG_SUMMARY, patch));
   }
 
-  async function runAsk() {
+  function runAsk() {
     const q = askQuestion.trim();
     if (!q || askBusy) return;
-    setAskPhase("retrieving");
-    setAskAnswer("");
-    setAskSources([]);
-    setAskExcerpts([]);
-    try {
-      await onAskLogs(q, {
-        onRetrieval: ({ sources, excerpts }) => {
-          setAskSources(sources);
-          setAskExcerpts(excerpts);
-          setAskPhase("answering");
-        },
-        onAnswerDelta: (delta) => setAskAnswer((prev) => prev + delta)
-      });
-    } catch (e) {
-      reportErrorToUser("report", e);
-    } finally {
-      setAskPhase("idle");
-    }
+    onRunAsk(q);
   }
 
   async function copyAskAnswer() {
@@ -313,7 +319,11 @@ export function WorkspaceDrawer({
     reportBusy && reportOut ? t("workspaceReportStreaming") : reportBusy ? t("workspaceReportBusy") : t("workspaceReportRun");
 
   return (
-    <div className="workspace-drawer-backdrop" role="presentation" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="workspace-drawer-backdrop"
+      role="presentation"
+      onMouseDown={(e) => e.target === e.currentTarget && !lockClose && onClose()}
+    >
       <aside
         className="workspace-drawer"
         role="dialog"
@@ -328,7 +338,15 @@ export function WorkspaceDrawer({
             </span>
             {t("workspaceTitle")}
           </h2>
-          <button type="button" className="icon-button workspace-drawer__close" onClick={onClose} aria-label={t("close")}>
+          <button
+            type="button"
+            className="icon-button workspace-drawer__close"
+            disabled={lockClose}
+            onClick={() => {
+              if (!lockClose) onClose();
+            }}
+            aria-label={t("close")}
+          >
             <X size={18} />
           </button>
         </header>
@@ -336,33 +354,33 @@ export function WorkspaceDrawer({
           <button
             type="button"
             role="tab"
-            aria-selected={tab === "summary"}
-            className={`workspace-drawer__tab${tab === "summary" ? " is-active" : ""}`}
-            onClick={() => setTab("summary")}
+            aria-selected={activeTab === "summary"}
+            className={`workspace-drawer__tab${activeTab === "summary" ? " is-active" : ""}`}
+            onClick={() => onTabChange("summary")}
           >
             {t("workspaceTabSummary")}
           </button>
           <button
             type="button"
             role="tab"
-            aria-selected={tab === "ask"}
-            className={`workspace-drawer__tab${tab === "ask" ? " is-active" : ""}`}
-            onClick={() => setTab("ask")}
+            aria-selected={activeTab === "ask"}
+            className={`workspace-drawer__tab${activeTab === "ask" ? " is-active" : ""}`}
+            onClick={() => onTabChange("ask")}
           >
             {t("workspaceTabAsk")}
           </button>
           <button
             type="button"
             role="tab"
-            aria-selected={tab === "memory"}
-            className={`workspace-drawer__tab${tab === "memory" ? " is-active" : ""}`}
-            onClick={() => setTab("memory")}
+            aria-selected={activeTab === "memory"}
+            className={`workspace-drawer__tab${activeTab === "memory" ? " is-active" : ""}`}
+            onClick={() => onTabChange("memory")}
           >
             {t("workspaceTabMemory")}
           </button>
         </div>
         <div className="workspace-drawer__body">
-          {tab === "memory" ? (
+          {activeTab === "memory" ? (
             <div className="workspace-memory workspace-panel-card">
               <p className="muted workspace-memory__hint">{t("workspaceMemoryHint")}</p>
               <button type="button" className="workspace-soft-button workspace-memory__add" onClick={addMemory}>
@@ -449,7 +467,7 @@ export function WorkspaceDrawer({
                 })}
               </ul>
             </div>
-          ) : tab === "ask" ? (
+          ) : activeTab === "ask" ? (
             <div className="workspace-ask workspace-panel-card">
               <p className="muted workspace-report__lead">{t("workspaceAskHint")}</p>
               <label className="workspace-report__label workspace-report__label--block">
@@ -458,17 +476,17 @@ export function WorkspaceDrawer({
                   className="workspace-field workspace-ask__question"
                   rows={4}
                   value={askQuestion}
-                  onChange={(e) => setAskQuestion(e.target.value)}
+                  onChange={(e) => onAskQuestionChange(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key !== "Enter" || e.nativeEvent.isComposing || e.shiftKey) return;
                     e.preventDefault();
-                    void runAsk();
+                    runAsk();
                   }}
                   placeholder={t("workspaceAskPlaceholder")}
                   aria-label={t("workspaceAskQuestion")}
                 />
               </label>
-              <button type="button" className="primary workspace-report__run" onClick={() => void runAsk()} disabled={!canAsk}>
+              <button type="button" className="primary workspace-report__run" onClick={runAsk} disabled={!canAsk}>
                 {askRunLabel}
               </button>
               {askPhase === "retrieving" && !askExcerpts.length ? (
@@ -483,7 +501,7 @@ export function WorkspaceDrawer({
                   aria-busy={askPhase === "answering"}
                 >
                   {askAnswer ? (
-                    <WorkspaceMarkdown source={askAnswer} />
+                    <WorkspaceMarkdown source={askAnswer} streaming={askPhase === "answering"} />
                   ) : (
                     <p className="workspace-markdown-out__placeholder muted">
                       {askPhase === "answering" ? t("workspaceAskStreaming") : t("workspaceAskAnswerPlaceholder")}
@@ -565,17 +583,17 @@ export function WorkspaceDrawer({
                   </span>
                 </div>
                 <div className="workspace-log-pick__actions">
-                  <button type="button" className="workspace-soft-button workspace-log-pick__action" onClick={selectAllLogs} disabled={!allLogIds.length}>
+                  <button type="button" className="workspace-soft-button workspace-log-pick__action" onClick={selectAllLogs} disabled={!logNodes.length}>
                     {t("workspaceSummarySelectAll")}
                   </button>
                   <button type="button" className="workspace-soft-button workspace-log-pick__action" onClick={clearLogSelection} disabled={!selectedLogIds.length}>
                     {t("workspaceSummaryClear")}
                   </button>
                 </div>
-                {allLogIds.length ? (
-                  <ul className="workspace-log-pick__list workspace-log-pick__list--tree" aria-label={t("workspaceSummaryLogs")}>
+                {nodes.length ? (
+                  <div className="workspace-log-pick__list workspace-log-pick__list--tree" aria-label={t("workspaceSummaryLogs")}>
                     {renderLogPickTree(null, 0)}
-                  </ul>
+                  </div>
                 ) : (
                   <p className="muted workspace-log-pick__empty">{t("workspaceSummaryNoLogs")}</p>
                 )}
@@ -614,7 +632,7 @@ export function WorkspaceDrawer({
                   {reportInputError}
                 </p>
               ) : null}
-              <button type="button" className="primary workspace-report__run" onClick={() => void runSummary()} disabled={!canGenerate}>
+              <button type="button" className="primary workspace-report__run" onClick={runSummary} disabled={!canGenerate}>
                 {reportRunLabel}
               </button>
               <div className="workspace-report__output">
@@ -626,7 +644,7 @@ export function WorkspaceDrawer({
                 aria-busy={reportBusy}
               >
                 {reportOut ? (
-                  <WorkspaceMarkdown source={reportOut} />
+                  <WorkspaceMarkdown source={reportOut} streaming={reportBusy} />
                 ) : (
                   <p className="workspace-markdown-out__placeholder muted">
                     {reportBusy ? t("workspaceReportBusy") : t("workspaceReportPlaceholder")}

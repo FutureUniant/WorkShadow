@@ -24,6 +24,7 @@ type SectionKey = keyof DataBundleExportOptions;
 const EXPORT_SECTION_KEYS: SectionKey[] = [
   "logs",
   "memory",
+  "workspacePersonal",
   "generalSettings",
   "modelConfig",
   "shortcuts"
@@ -32,6 +33,7 @@ const EXPORT_SECTION_KEYS: SectionKey[] = [
 const EXPORT_SECTION_I18N: Record<SectionKey, string> = {
   logs: "settingsDataSectionLogs",
   memory: "settingsDataSectionMemory",
+  workspacePersonal: "settingsDataSectionWorkspacePersonal",
   generalSettings: "settingsDataSectionGeneral",
   modelConfig: "settingsDataSectionModels",
   shortcuts: "settingsDataSectionShortcuts"

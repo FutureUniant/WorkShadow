@@ -26,6 +26,7 @@ const DATA_MEMORY: &str = "data/memory.json";
 const DATA_GENERAL: &str = "data/general-settings.json";
 const DATA_MODELS: &str = "data/models.json";
 const DATA_SHORTCUTS: &str = "data/shortcuts.json";
+const DATA_WORKSPACE_PERSONAL: &str = "data/workspace-personal.json";
 const LANCE_PREFIX: &str = "lance/";
 const LOGS_PREFIX: &str = "user/logs/";
 const TEMP_PREFIX: &str = "user/temp/";
@@ -39,6 +40,8 @@ pub struct DataBundleExportOptions {
     pub general_settings: bool,
     pub model_config: bool,
     pub shortcuts: bool,
+    #[serde(default)]
+    pub workspace_personal: bool,
     /// 旧版 .ws 可能单独勾选；导入时与 `logs` 一并处理向量索引，新版导出不再写入。
     #[serde(default, rename = "logChunks", skip_serializing)]
     pub log_chunks: bool,
@@ -51,6 +54,7 @@ impl DataBundleExportOptions {
             || self.general_settings
             || self.model_config
             || self.shortcuts
+            || self.workspace_personal
     }
 
     /// 是否合并/导出语义检索向量（随日志一并处理）。
@@ -65,6 +69,7 @@ impl DataBundleExportOptions {
             general_settings: true,
             model_config: true,
             shortcuts: true,
+            workspace_personal: true,
             log_chunks: false,
         }
     }
@@ -108,6 +113,11 @@ struct GeneralSettingsPayload {
     #[serde(default = "default_search_result_order")]
     search_result_order: String,
     semantic_min_similarity: f32,
+    /// 旧版 .ws 曾写入 general-settings.json，导入时兼容
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    text_completion_enabled: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    completion_personal_snippets: Option<Vec<String>>,
 }
 
 fn default_search_result_order() -> String {
@@ -126,6 +136,21 @@ struct ModelsPayload {
 #[serde(rename_all = "camelCase")]
 struct ShortcutsPayload {
     shortcuts: ShortcutMap,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspacePersonalPayload {
+    #[serde(default = "default_text_completion_enabled")]
+    text_completion_enabled: bool,
+    #[serde(default)]
+    completion_personal_snippets: Vec<String>,
+    #[serde(default)]
+    completion_usage_stats: Vec<crate::CompletionUsageStat>,
+}
+
+fn default_text_completion_enabled() -> bool {
+    true
 }
 
 #[derive(Debug, Serialize)]
@@ -208,6 +233,55 @@ where
     map.into_values().collect()
 }
 
+fn merge_completion_usage_stats(
+    local: Vec<crate::CompletionUsageStat>,
+    imported: Vec<crate::CompletionUsageStat>,
+) -> Vec<crate::CompletionUsageStat> {
+    let mut map: HashMap<String, crate::CompletionUsageStat> = local
+        .into_iter()
+        .map(|s| (s.phrase.clone(), s))
+        .collect();
+    for item in imported {
+        let phrase = item.phrase.trim().to_string();
+        if phrase.is_empty() {
+            continue;
+        }
+        match map.get(&phrase) {
+            None => {
+                map.insert(phrase, item);
+            }
+            Some(existing) => {
+                let replace = item.last_accepted_at > existing.last_accepted_at
+                    || item.accept_count > existing.accept_count;
+                if replace {
+                    map.insert(phrase, item);
+                }
+            }
+        }
+    }
+    let mut out: Vec<_> = map.into_values().collect();
+    out.sort_by(|a, b| b.last_accepted_at.cmp(&a.last_accepted_at));
+    out.truncate(200);
+    out
+}
+
+fn merge_ask_question_history(local: Vec<String>, imported: Vec<String>) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    for q in imported.into_iter().chain(local) {
+        let t = q.trim().to_string();
+        if t.is_empty() || seen.contains(&t) {
+            continue;
+        }
+        seen.insert(t.clone());
+        out.push(t);
+        if out.len() >= 50 {
+            break;
+        }
+    }
+    out
+}
+
 fn merge_expanded_ids(local: Vec<String>, imported: Vec<String>) -> Vec<String> {
     let mut set: HashSet<String> = local.into_iter().collect();
     for id in imported {
@@ -225,6 +299,8 @@ fn general_settings_from(s: &AppSettings) -> GeneralSettingsPayload {
         media_strategy: s.media_strategy.clone(),
         search_result_order: s.search_result_order.clone(),
         semantic_min_similarity: s.semantic_min_similarity,
+        text_completion_enabled: None,
+        completion_personal_snippets: None,
     }
 }
 
@@ -456,6 +532,16 @@ pub fn export_data_bundle(
             &general_settings_from(&state.settings),
         )?;
     }
+    if options.workspace_personal {
+        write_json_file(
+            &staging.join(DATA_WORKSPACE_PERSONAL),
+            &WorkspacePersonalPayload {
+                text_completion_enabled: state.settings.text_completion_enabled,
+                completion_personal_snippets: state.completion_personal_snippets.clone(),
+                completion_usage_stats: state.completion_usage_stats.clone(),
+            },
+        )?;
+    }
     if options.model_config {
         write_json_file(
             &staging.join(DATA_MODELS),
@@ -486,6 +572,7 @@ pub fn export_data_bundle(
         (DATA_GENERAL, options.general_settings),
         (DATA_MODELS, options.model_config),
         (DATA_SHORTCUTS, options.shortcuts),
+        (DATA_WORKSPACE_PERSONAL, options.workspace_personal),
     ];
     for (name, on) in data_files {
         if !on {
@@ -662,6 +749,26 @@ fn merge_v2_from_staging(
     if sections.general_settings && staging.join(DATA_GENERAL).is_file() {
         let imported: GeneralSettingsPayload = read_json_file(&staging.join(DATA_GENERAL))?;
         apply_general_settings(&mut local.settings, &imported);
+        if let Some(enabled) = imported.text_completion_enabled {
+            local.settings.text_completion_enabled = enabled;
+        }
+        if let Some(snippets) = imported.completion_personal_snippets {
+            local.completion_personal_snippets = merge_ask_question_history(
+                local.completion_personal_snippets,
+                snippets,
+            );
+        }
+    }
+
+    if sections.workspace_personal && staging.join(DATA_WORKSPACE_PERSONAL).is_file() {
+        let imported: WorkspacePersonalPayload = read_json_file(&staging.join(DATA_WORKSPACE_PERSONAL))?;
+        local.settings.text_completion_enabled = imported.text_completion_enabled;
+        local.completion_personal_snippets = merge_ask_question_history(
+            local.completion_personal_snippets,
+            imported.completion_personal_snippets,
+        );
+        local.completion_usage_stats =
+            merge_completion_usage_stats(local.completion_usage_stats, imported.completion_usage_stats);
     }
 
     if sections.model_config && staging.join(DATA_MODELS).is_file() {
@@ -728,6 +835,14 @@ fn merge_legacy_from_staging(
             imported.document_generation_prefs,
             |p| p.doc_kind.as_str(),
             |p| p.updated_at.as_str(),
+        ),
+        completion_personal_snippets: merge_ask_question_history(
+            local.completion_personal_snippets,
+            imported.completion_personal_snippets,
+        ),
+        completion_usage_stats: merge_completion_usage_stats(
+            local.completion_usage_stats,
+            imported.completion_usage_stats,
         ),
     };
 

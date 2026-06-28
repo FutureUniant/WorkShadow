@@ -1,18 +1,11 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
-import { ArrowLeft, Bug, Cpu, Database, Info, Keyboard, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Cpu, Database, Info, Keyboard, SlidersHorizontal } from "lucide-react";
 import { DataSettingsPanel } from "./DataSettingsPanel";
-import { DeveloperSettingsPanel } from "./DeveloperSettingsPanel";
 import { useTranslation } from "react-i18next";
 import aboutIcon from "../assets/logo.png";
-import wechatAdminQr from "../../docs/wechat.jpg";
-import wechatPublicQr from "../../docs/wechat_public.jpg";
-import pkg from "../../package.json";
-import type {
-  AppSettings,
-  ConfirmOptions,
-  SearchResultOrder,
-  ShortcutBinding
-} from "../types";
+import wechatAdminQr from "../assets/wechat.jpg";
+import wechatPublicQr from "../assets/wechat_public.jpg";
+import type { AppSettings, ConfirmOptions, ModelConfig, SearchResultOrder, ShortcutBinding } from "../types";
 import {
   bindingFromKeyboardEvent,
   defaultShortcutMap,
@@ -23,26 +16,26 @@ import {
   type ShortcutActionId
 } from "../services/shortcuts";
 import { reportErrorToUser, reportSuccessNotice } from "../services/errorReporting";
+import { MODEL_PROVIDER_PRESETS } from "../services/modelProviders";
+import { upsertModelProfile, switchModelProviderProfile } from "../services/modelProfiles";
 import { testLlmConfig } from "../services/modelTest";
 import { EmbeddingModelFields } from "./EmbeddingModelFields";
-import { ModelConfigFields } from "./ModelConfigFields";
+import { getDisplayVersion } from "../config/edition";
 import { pickDirectory } from "../services/pickDirectory";
 import { isTauriRuntime } from "../services/storage";
 import { SettingsSelect } from "./SettingsSelect";
 
-type SettingsMajor = "general" | "models" | "shortcuts" | "data" | "about" | "developer";
+export type SettingsMajor = "general" | "models" | "shortcuts" | "data" | "about";
 
 interface Props {
   open: boolean;
+  initialMajor?: SettingsMajor;
   settings: AppSettings;
   onChange: (settings: AppSettings) => void;
   onBack: () => void | Promise<void>;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
   embeddingFlushRef: MutableRefObject<(() => Promise<void>) | null>;
-  onEmbeddingCommit: (
-    patch: Pick<import("../types").AppSettings, "embedding" | "embeddingProfiles">,
-    options: { needsVectorRebuild: boolean }
-  ) => void;
+  onEmbeddingCommit: (embedding: ModelConfig, options: { needsVectorRebuild: boolean }) => void;
   onBeforeDataTransfer: () => Promise<void>;
   onDataImported: () => Promise<void>;
 }
@@ -107,6 +100,7 @@ const SHORTCUT_ROWS: { id: ShortcutActionId; labelKey: string }[] = [
 
 export function SettingsPanel({
   open,
+  initialMajor,
   settings,
   onChange,
   onBack,
@@ -122,6 +116,11 @@ export function SettingsPanel({
   const [bindError, setBindError] = useState<string | null>(null);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+
+  useEffect(() => {
+    if (!open || !initialMajor) return;
+    setMajor(initialMajor);
+  }, [open, initialMajor]);
 
   useEffect(() => {
     if (!open || recording === null) return;
@@ -162,9 +161,6 @@ export function SettingsPanel({
     { id: "models", label: t("settingsCategoryModels"), icon: Cpu },
     { id: "shortcuts", label: t("settingsCategoryShortcuts"), icon: Keyboard },
     { id: "data", label: t("settingsCategoryData"), icon: Database },
-    ...(import.meta.env.DEV
-      ? [{ id: "developer" as const, label: t("settingsCategoryDeveloper"), icon: Bug }]
-      : []),
     { id: "about", label: t("settingsCategoryAbout"), icon: Info }
   ];
 
@@ -328,19 +324,17 @@ export function SettingsPanel({
           {major === "data" ? (
             <DataSettingsPanel confirm={confirm} onBeforeTransfer={onBeforeDataTransfer} onImported={onDataImported} />
           ) : null}
-          {major === "developer" && import.meta.env.DEV ? <DeveloperSettingsPanel /> : null}
           {major === "models" ? (
             <>
               <section className="settings-group" aria-labelledby="settings-group-llm">
                 <h2 id="settings-group-llm" className="settings-group-title">
                   {t("llmConfig")}
                 </h2>
-                <ModelConfigFields
+                <p className="settings-field-hint muted">{t("customLlmHint")}</p>
+                <ModelFields
                   value={settings.llm}
-                  profiles={settings.llmProfiles ?? {}}
+                  profiles={settings.llmProfiles}
                   onChange={(llm, llmProfiles) => onChange({ ...settings, llm, llmProfiles })}
-                  onTest={testLlmConfig}
-                  testSuccessMessage={t("modelTestSuccessLlm")}
                 />
               </section>
               <section className="settings-group" aria-labelledby="settings-group-embedding">
@@ -348,12 +342,14 @@ export function SettingsPanel({
                   {t("embeddingConfig")}
                 </h2>
                 <EmbeddingModelFields
-                  committed={{ embedding: settings.embedding, embeddingProfiles: settings.embeddingProfiles }}
+                  committed={settings.embedding}
+                  profiles={settings.embeddingProfiles}
                   confirm={confirm}
                   onRegisterFlush={(flush) => {
                     embeddingFlushRef.current = flush;
                   }}
-                  onCommit={(patch, options) => onEmbeddingCommit(patch, options)}
+                  onProfilesChange={(embeddingProfiles) => onChange({ ...settings, embeddingProfiles })}
+                  onCommit={(embedding, options) => onEmbeddingCommit(embedding, options)}
                 />
               </section>
             </>
@@ -393,7 +389,7 @@ export function SettingsPanel({
                   WorkShadow
                 </h2>
                 <p className="settings-about-tagline muted">{t("settingsAboutTagline")}</p>
-                <p className="settings-about-version">{t("settingsAboutVersion", { version: pkg.version })}</p>
+                <p className="settings-about-version">{t("settingsAboutVersion", { version: getDisplayVersion() })}</p>
               </div>
               <h3 className="settings-about-section-title">{t("settingsAboutWhyTitle")}</h3>
               <p className="settings-about-body">
@@ -401,35 +397,57 @@ export function SettingsPanel({
                 {"\n\n"}
                 {t("settingsAboutClosing")}
               </p>
-              <h3 className="settings-about-section-title">{t("settingsAboutContact")}</h3>
-              <p className="settings-about-body muted">{t("settingsContactIntro")}</p>
-              <div className="settings-contact-qr-grid">
-                <figure className="settings-contact-qr-card">
-                  <img src={wechatAdminQr} width={168} height={168} alt={t("settingsContactWechatAdminAlt")} />
-                  <figcaption className="settings-contact-qr-label">{t("settingsContactWechatAdmin")}</figcaption>
-                  <p className="settings-contact-qr-hint muted">{t("settingsContactWechatAdminHint")}</p>
-                </figure>
-                <figure className="settings-contact-qr-card">
-                  <img src={wechatPublicQr} width={168} height={168} alt={t("settingsContactWechatPublicAlt")} />
-                  <figcaption className="settings-contact-qr-label">{t("settingsContactWechatPublic")}</figcaption>
-                  <p className="settings-contact-qr-hint muted">{t("settingsContactWechatPublicHint")}</p>
-                </figure>
+              <div className="settings-about-contact">
+                <h3 className="settings-about-contact__title">{t("settingsAboutContact")}</h3>
+                <p className="settings-about-contact__intro">{t("settingsAboutContactIntro")}</p>
+                <div className="settings-contact-qr-grid" role="list">
+                  <article className="settings-contact-qr-card" role="listitem">
+                    <div className="settings-contact-qr-card__media">
+                      <img
+                        className="settings-contact-qr-img"
+                        src={wechatAdminQr}
+                        width={148}
+                        height={148}
+                        alt={t("settingsAboutWechatAdmin")}
+                      />
+                    </div>
+                    <h4 className="settings-contact-qr-card__title">{t("settingsAboutWechatAdmin")}</h4>
+                    <p className="settings-contact-qr-card__hint">{t("settingsAboutWechatAdminHint")}</p>
+                  </article>
+                  <article className="settings-contact-qr-card" role="listitem">
+                    <div className="settings-contact-qr-card__media">
+                      <img
+                        className="settings-contact-qr-img"
+                        src={wechatPublicQr}
+                        width={148}
+                        height={148}
+                        alt={t("settingsAboutWechatPublic")}
+                      />
+                    </div>
+                    <h4 className="settings-contact-qr-card__title">{t("settingsAboutWechatPublic")}</h4>
+                    <p className="settings-contact-qr-card__hint">{t("settingsAboutWechatPublicHint")}</p>
+                  </article>
+                </div>
+                <p className="settings-about-contact__email">
+                  <span className="settings-contact-email-label">{t("settingsAboutContactEmail")}：</span>
+                  <button
+                    type="button"
+                    className="settings-about-mail"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(ABOUT_EMAIL).then(
+                        () =>
+                          reportSuccessNotice(
+                            t("settingsAboutEmailCopiedTitle"),
+                            t("settingsAboutEmailCopiedSummary")
+                          ),
+                        () => reportErrorToUser("persist", new Error("clipboard write failed"), { severity: "toast" })
+                      );
+                    }}
+                  >
+                    {ABOUT_EMAIL}
+                  </button>
+                </p>
               </div>
-              <h4 className="settings-contact-email-title">{t("settingsContactEmail")}</h4>
-              <p className="settings-about-body">
-                <button
-                  type="button"
-                  className="settings-about-mail"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(ABOUT_EMAIL).then(
-                      () => reportSuccessNotice(t("settingsAboutEmailCopiedTitle"), t("settingsAboutEmailCopiedSummary")),
-                      () => reportErrorToUser("persist", new Error("clipboard write failed"), { severity: "toast" })
-                    );
-                  }}
-                >
-                  {ABOUT_EMAIL}
-                </button>
-              </p>
             </section>
           ) : null}
         </div>
@@ -482,3 +500,85 @@ function ShortcutRowView({
   );
 }
 
+type ModelTestState = { status: "idle" } | { status: "running" } | { status: "ok"; message: string } | { status: "fail"; message: string };
+
+function ModelFields({
+  value,
+  profiles,
+  onChange
+}: {
+  value: ModelConfig;
+  profiles?: AppSettings["llmProfiles"];
+  onChange: (value: ModelConfig, profiles: NonNullable<AppSettings["llmProfiles"]>) => void;
+}) {
+  const { t } = useTranslation();
+  const [test, setTest] = useState<ModelTestState>({ status: "idle" });
+
+  function applyConfig(next: ModelConfig, nextProfiles: NonNullable<AppSettings["llmProfiles"]>) {
+    onChange(next, nextProfiles);
+  }
+
+  function updateConfig(patch: Partial<ModelConfig>) {
+    const next = { ...value, ...patch };
+    applyConfig(next, upsertModelProfile(profiles, next));
+  }
+
+  function changeProvider(provider: NonNullable<ModelConfig["provider"]>) {
+    const { profiles: nextProfiles, active } = switchModelProviderProfile(profiles, value, provider);
+    applyConfig(active, nextProfiles);
+    setTest({ status: "idle" });
+  }
+
+  async function runTest() {
+    setTest({ status: "running" });
+    try {
+      await testLlmConfig(value);
+      applyConfig(value, upsertModelProfile(profiles, value));
+      setTest({ status: "ok", message: t("modelTestSuccessLlm") });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setTest({ status: "fail", message: t("modelTestFailed", { message }) });
+    }
+  }
+
+  return (
+    <div className="settings-model-block">
+      <p className="settings-field-hint muted">{t("modelProviderProfilesHint")}</p>
+      <label className="settings-field">
+        <span className="settings-field-label">{t("modelProvider")}</span>
+        <SettingsSelect
+          value={value.provider ?? "openaiCompatible"}
+          options={MODEL_PROVIDER_PRESETS.map((preset) => ({
+            value: preset.id,
+            label: t(preset.labelKey)
+          }))}
+          onChange={(provider) => changeProvider(provider as NonNullable<ModelConfig["provider"]>)}
+        />
+      </label>
+      <label className="settings-field">
+        <span className="settings-field-label">{t("baseUrl")}</span>
+        <input value={value.baseUrl} onChange={(event) => updateConfig({ baseUrl: event.target.value })} />
+      </label>
+      <label className="settings-field">
+        <span className="settings-field-label">{t("apiKey")}</span>
+        <input type="password" value={value.apiKey} onChange={(event) => updateConfig({ apiKey: event.target.value })} />
+      </label>
+      <label className="settings-field">
+        <span className="settings-field-label">{t("modelName")}</span>
+        <input value={value.model} onChange={(event) => updateConfig({ model: event.target.value })} />
+      </label>
+      <div className="settings-model-test">
+        <button
+          type="button"
+          className="settings-model-test-btn small"
+          disabled={test.status === "running"}
+          onClick={() => void runTest()}
+        >
+          {test.status === "running" ? t("modelTestRunning") : t("modelTestConnection")}
+        </button>
+        {test.status === "ok" ? <p className="settings-model-test-msg settings-model-test-msg--ok">{test.message}</p> : null}
+        {test.status === "fail" ? <p className="settings-model-test-msg settings-model-test-msg--fail">{test.message}</p> : null}
+      </div>
+    </div>
+  );
+}

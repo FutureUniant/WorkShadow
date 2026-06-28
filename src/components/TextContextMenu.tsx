@@ -10,7 +10,7 @@ import {
 } from "../services/textContextMenu";
 
 const MENU_WIDTH = 168;
-const MENU_ESTIMATED_HEIGHT = 148;
+const MENU_ESTIMATED_HEIGHT = 188;
 const VIEWPORT_PAD = 8;
 
 interface MenuState {
@@ -98,6 +98,7 @@ export function TextContextMenu() {
 
   const items: { command: TextEditCommand; label: string; disabled: boolean }[] = [
     { command: "copy", label: t("contextMenuCopy"), disabled: !menuState.canCopy },
+    { command: "copyPlainText", label: t("contextMenuCopyPlainText"), disabled: !menuState.canCopyPlainText },
     { command: "cut", label: t("contextMenuCut"), disabled: !menuState.canCut },
     { command: "paste", label: t("contextMenuPaste"), disabled: !menuState.canPaste },
     { command: "selectAll", label: t("contextMenuSelectAll"), disabled: !menuState.canSelectAll }

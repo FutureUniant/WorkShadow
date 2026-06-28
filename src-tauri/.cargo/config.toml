@@ -1,2 +1,5 @@
+# Lance lance-* crates compile protobuf at build time. grpc-tools' Node protoc wrapper
+# lacks include paths; Unicode project paths also break protoc on Windows.
+# Run `npm run tauri:setup-protoc` once, then this wrapper uses %LOCALAPPDATA%\workshadow-protoc.
 [env]
-PROTOC = { value = "../node_modules/.bin/grpc_tools_node_protoc.cmd", relative = true }
+PROTOC = { value = "tools/protoc-wrapper.cmd", relative = true }

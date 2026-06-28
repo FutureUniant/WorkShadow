@@ -76,6 +76,134 @@ export function tiptapToMarkdown(doc: unknown): string {
     .trim();
 }
 
+function buildTableCellAttrString(attrs: Record<string, unknown> | undefined): string {
+  const styleParts: string[] = [];
+  const align = attrs?.align as string | undefined;
+  if (align) styleParts.push(`text-align:${align}`);
+  const valign = attrs?.verticalAlign as string | undefined;
+  if (valign) styleParts.push(`vertical-align:${valign}`);
+  const bg = attrs?.backgroundColor as string | undefined;
+  if (bg) styleParts.push(`background-color:${bg}`);
+  let result = "";
+  if (styleParts.length) result += ` style="${escapeAttr(styleParts.join(";"))}"`;
+  if (bg) result += ` bgcolor="${escapeAttr(bg)}"`;
+  return result;
+}
+
+function renderTableAsHtml(node: TiptapNode): string {
+  const rows = (node.content ?? [])
+    .filter((row) => row.type === "tableRow")
+    .map((row) => {
+      const cells = (row.content ?? [])
+        .map((cell) => {
+          if (cell.type !== "tableCell" && cell.type !== "tableHeader") return "";
+          const tag = cell.type === "tableHeader" ? "th" : "td";
+          const attrs = buildTableCellAttrString(cell.attrs);
+          const inner = renderExportInline(cell.content);
+          return `<${tag}${attrs}>${inner}</${tag}>`;
+        })
+        .join("");
+      return `<tr>${cells}</tr>`;
+    })
+    .join("\n");
+  return `<table>\n${rows}\n</table>`;
+}
+
+function renderExportInline(content?: TiptapNode[]) {
+  return (content ?? []).map(renderExportNode).join("");
+}
+
+function renderExportNode(node: TiptapNode): string {
+  switch (node.type) {
+    case "text":
+      return textWithMarks(node);
+    case "paragraph": {
+      const inner = renderExportInline(node.content);
+      const align = String(node.attrs?.textAlign ?? "left");
+      if (align && align !== "left" && inner) {
+        return `<p style="text-align:${align}">${inner}</p>`;
+      }
+      return inner;
+    }
+    case "heading": {
+      const level = Number(node.attrs?.level ?? 2);
+      const hashes = "#".repeat(level);
+      const inner = renderExportInline(node.content);
+      const align = String(node.attrs?.textAlign ?? "left");
+      if (align && align !== "left" && inner) {
+        return `<div style="text-align:${align}">${hashes} ${inner}</div>`;
+      }
+      return `${hashes} ${inner}`;
+    }
+    case "bulletList":
+      return (node.content ?? []).map((item) => `- ${renderExportInline(item.content)}`).join("\n");
+    case "orderedList":
+      return (node.content ?? []).map((item, index) => `${index + 1}. ${renderExportInline(item.content)}`).join("\n");
+    case "taskList":
+      return (node.content ?? [])
+        .map((item) => {
+          if (item.type !== "taskItem") return renderExportNode(item);
+          const checked = Boolean(item.attrs?.checked);
+          const box = checked ? "[x]" : "[ ]";
+          return `- ${box} ${renderExportInline(item.content)}`;
+        })
+        .join("\n");
+    case "taskItem":
+      return renderExportInline(node.content);
+    case "listItem":
+      return renderExportInline(node.content);
+    case "blockquote":
+      return renderExportInline(node.content)
+        .split("\n")
+        .map((line) => `> ${line}`)
+        .join("\n");
+    case "codeBlock":
+      return `\`\`\`${String(node.attrs?.language ?? "")}\n${renderExportInline(node.content)}\n\`\`\``;
+    case "horizontalRule":
+      return "---";
+    case "inlineMath": {
+      const latex = String(node.attrs?.latex ?? "").trim();
+      return latex ? `$${latex}$` : "";
+    }
+    case "blockMath": {
+      const latex = String(node.attrs?.latex ?? "").trim();
+      return latex ? `\n$$\n${latex}\n$$\n` : "";
+    }
+    case "image":
+      return "";
+    case "video": {
+      const src = String(node.attrs?.src ?? "");
+      const embedSrc = node.attrs?.embedSrc as string | null | undefined;
+      const caption = String(node.attrs?.caption ?? "").trim();
+      const width = node.attrs?.width as string | null | undefined;
+      const wrapStyle = width ? `max-width:100%;width:${escapeAttr(width)}` : "max-width:100%";
+      const cap = caption ? `<div class="ws-media-caption">${escapeHtml(caption)}</div>` : "";
+      if (embedSrc) {
+        const iframe = `<iframe data-workshadow-video="1" data-page-url="${escapeAttr(src)}" src="${escapeAttr(embedSrc)}" allowfullscreen="true" frameborder="0" style="width:100%;max-width:none;aspect-ratio:16/9;height:auto;border:0;border-radius:12px;background:#000;display:block;box-sizing:border-box;"></iframe>`;
+        const inner = `<div class="ws-media-video-inner">${iframe}</div>`;
+        return `<div class="ws-media-wrap ws-media-wrap--video" data-ws-lightbox="1" style="${wrapStyle}">${inner}${cap}</div>${mediaAnnotation(node.attrs, "嵌入网页视频")}`;
+      }
+      const video = `<video src="${escapeAttr(src)}" controls playsinline style="width:100%;max-width:none;height:auto;border-radius:12px;display:block;box-sizing:border-box;"></video>`;
+      const inner = `<div class="ws-media-video-inner">${video}</div>`;
+      return `<div class="ws-media-wrap ws-media-wrap--video" data-ws-lightbox="1" style="${wrapStyle}">${inner}${cap}</div>${mediaAnnotation(node.attrs, "待生成视频解析结果")}`;
+    }
+    case "table":
+      return renderTableAsHtml(node);
+    default:
+      return renderExportInline(node.content);
+  }
+}
+
+/** 开发工具：导出 Markdown；图片跳过，表格以 HTML 保留 */
+export function tiptapToExportMarkdown(doc: unknown): string {
+  const root = doc as TiptapNode;
+  return (root.content ?? [])
+    .map(renderExportNode)
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+}
+
 function cellPlainText(content?: TiptapNode[]): string {
   return (content ?? [])
     .map((child) => renderNode(child).replace(/\s+/g, " ").trim())

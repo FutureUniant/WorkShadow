@@ -1,184 +1,105 @@
-import type { ModelConfig } from "../types";
-
-/** 服务商 ID，与 MODEL_PROVIDER_PRESETS 一致 */
-export type ModelProvider =
-  | "openaiCompatible"
-  | "openai"
-  | "aliyun"
-  | "gemini"
-  | "anthropic"
-  | "siliconflow"
-  | "deepseek"
-  | "tencent"
-  | "ollama";
+import type { ModelConfig, ModelProvider } from "../types";
 
 export type ModelProtocol = "openaiCompatible" | "anthropic";
-
-export const MODEL_PROVIDER_IDS: ModelProvider[] = [
-  "openaiCompatible",
-  "openai",
-  "aliyun",
-  "gemini",
-  "anthropic",
-  "siliconflow",
-  "deepseek",
-  "tencent",
-  "ollama"
-];
-
-export function isModelProvider(value: string): value is ModelProvider {
-  return (MODEL_PROVIDER_IDS as string[]).includes(value);
-}
-
-export function normalizeModelProvider(raw: unknown): ModelProvider {
-  if (typeof raw === "string") {
-    if (raw === "custom") return "openaiCompatible";
-    if (isModelProvider(raw)) return raw;
-  }
-  return "openaiCompatible";
-}
 
 export interface ModelProviderPreset {
   id: ModelProvider;
   labelKey: string;
   baseUrl: string;
-  defaultModel?: string;
   protocol: ModelProtocol;
   supportsEmbedding: boolean;
-  apiKeyOptional?: boolean;
-  hintKey?: string;
 }
 
 export const MODEL_PROVIDER_PRESETS: ModelProviderPreset[] = [
   {
     id: "openaiCompatible",
-    labelKey: "openaiCompatible",
+    labelKey: "modelProviderOpenaiCompatible",
     baseUrl: "",
     protocol: "openaiCompatible",
-    supportsEmbedding: true,
-    apiKeyOptional: true,
-    hintKey: "customHint"
+    supportsEmbedding: true
   },
   {
     id: "openai",
-    labelKey: "openai",
+    labelKey: "modelProviderOpenai",
     baseUrl: "https://api.openai.com/v1",
-    defaultModel: "gpt-4o-mini",
     protocol: "openaiCompatible",
     supportsEmbedding: true
   },
   {
     id: "aliyun",
-    labelKey: "aliyun",
+    labelKey: "modelProviderAliyun",
     baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    defaultModel: "qwen-plus",
     protocol: "openaiCompatible",
     supportsEmbedding: true
   },
   {
     id: "gemini",
-    labelKey: "gemini",
+    labelKey: "modelProviderGemini",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-    defaultModel: "gemini-2.0-flash",
     protocol: "openaiCompatible",
-    supportsEmbedding: true,
-    hintKey: "geminiHint"
+    supportsEmbedding: true
   },
   {
     id: "anthropic",
-    labelKey: "anthropic",
+    labelKey: "modelProviderAnthropic",
     baseUrl: "https://api.anthropic.com/v1",
-    defaultModel: "claude-sonnet-4-20250514",
     protocol: "anthropic",
-    supportsEmbedding: false,
-    hintKey: "anthropicHint"
+    supportsEmbedding: false
   },
   {
     id: "siliconflow",
-    labelKey: "siliconflow",
+    labelKey: "modelProviderSiliconFlow",
     baseUrl: "https://api.siliconflow.cn/v1",
-    defaultModel: "deepseek-ai/DeepSeek-V3",
     protocol: "openaiCompatible",
     supportsEmbedding: true
   },
   {
     id: "deepseek",
-    labelKey: "deepseek",
+    labelKey: "modelProviderDeepSeek",
     baseUrl: "https://api.deepseek.com/v1",
-    defaultModel: "deepseek-chat",
     protocol: "openaiCompatible",
-    supportsEmbedding: false,
-    hintKey: "deepseekHint"
+    supportsEmbedding: false
   },
   {
     id: "tencent",
-    labelKey: "tencent",
+    labelKey: "modelProviderTencent",
     baseUrl: "https://api.hunyuan.cloud.tencent.com/v1",
-    defaultModel: "hunyuan-lite",
     protocol: "openaiCompatible",
     supportsEmbedding: true
-  },
-  {
-    id: "ollama",
-    labelKey: "ollama",
-    baseUrl: "http://127.0.0.1:11434/v1",
-    defaultModel: "llama3.2",
-    protocol: "openaiCompatible",
-    supportsEmbedding: true,
-    apiKeyOptional: true,
-    hintKey: "ollamaHint"
   }
 ];
 
-export function getModelProviderPreset(id: ModelProvider): ModelProviderPreset {
-  return MODEL_PROVIDER_PRESETS.find((p) => p.id === id) ?? MODEL_PROVIDER_PRESETS[0];
+const PROVIDER_BY_ID = new Map(MODEL_PROVIDER_PRESETS.map((preset) => [preset.id, preset]));
+
+export function normalizeModelProvider(raw: unknown): ModelProvider {
+  return typeof raw === "string" && PROVIDER_BY_ID.has(raw as ModelProvider)
+    ? (raw as ModelProvider)
+    : "openaiCompatible";
 }
 
-export function modelProtocol(provider: ModelProvider): ModelProtocol {
-  return getModelProviderPreset(provider).protocol;
+export function getModelProvider(config: ModelConfig): ModelProviderPreset {
+  return PROVIDER_BY_ID.get(normalizeModelProvider(config.provider)) ?? MODEL_PROVIDER_PRESETS[0];
 }
 
-export function inferProviderFromBaseUrl(baseUrl: string): ModelProvider {
-  const normalized = baseUrl.trim().toLowerCase().replace(/\/+$/, "");
-  if (!normalized) return "openaiCompatible";
-
-  for (const preset of MODEL_PROVIDER_PRESETS) {
-    if (preset.id === "openaiCompatible") continue;
-    const presetBase = preset.baseUrl.toLowerCase().replace(/\/+$/, "");
-    if (normalized === presetBase || normalized.startsWith(`${presetBase}/`)) {
-      return preset.id;
-    }
-  }
-  return "openaiCompatible";
+export function modelProtocol(config: ModelConfig): ModelProtocol {
+  return getModelProvider(config).protocol;
 }
 
-export function isApiKeyOptionalForProvider(provider: ModelProvider, baseUrl: string): boolean {
-  const preset = getModelProviderPreset(provider);
-  if (preset.apiKeyOptional) return true;
-  try {
-    const host = new URL(baseUrl.trim()).hostname.toLowerCase();
-    return host === "localhost" || host === "127.0.0.1" || host === "::1";
-  } catch {
-    return false;
-  }
-}
-
-export function modelConfigForRequest(config: ModelConfig): ModelConfig {
+export function applyModelProvider(config: ModelConfig, provider: ModelProvider): ModelConfig {
+  const preset = PROVIDER_BY_ID.get(provider);
+  if (!preset) return { ...config, provider: "openaiCompatible" };
   return {
-    provider: config.provider,
-    baseUrl: config.baseUrl.trim(),
-    apiKey: config.apiKey.trim(),
-    model: config.model.trim()
+    ...config,
+    provider,
+    baseUrl: preset.baseUrl || config.baseUrl
   };
 }
 
-export function applyModelProvider(provider: ModelProvider, current?: ModelConfig): ModelConfig {
-  const preset = getModelProviderPreset(provider);
-  const prev = current ?? { provider, baseUrl: "", apiKey: "", model: "" };
+export function modelConfigForRequest(config: ModelConfig): Required<ModelConfig> {
   return {
-    provider,
-    baseUrl: preset.baseUrl || prev.baseUrl,
-    apiKey: prev.provider === provider ? prev.apiKey : "",
-    model: preset.defaultModel ?? prev.model
+    provider: normalizeModelProvider(config.provider),
+    baseUrl: config.baseUrl.trim(),
+    apiKey: config.apiKey.trim(),
+    model: config.model.trim()
   };
 }

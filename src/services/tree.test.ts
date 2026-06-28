@@ -3,14 +3,15 @@ import {
   compareByUpdatedAtDesc,
   createNode,
   compareByCreatedAtAsc,
-  collectDescendantLogIds,
+  compareBySiblingOrder,
+  collectLogIdsInSubtree,
   getChildrenSorted,
-  listAllLogIds,
   listLogNodesByUpdatedDesc,
   parentIdForNewChild,
   parentIdForNewSibling,
   nodeHasChildLogs,
   normalizeSelectionToRoots,
+  reorderNodeBefore,
   repairOrphanParentIds
 } from "./tree";
 import type { LogNode } from "../types";
@@ -32,6 +33,23 @@ describe("nodeHasChildLogs", () => {
   it("is true when node has children", () => {
     expect(nodeHasChildLogs(nodes, "a")).toBe(true);
     expect(nodeHasChildLogs(nodes, "b")).toBe(false);
+  });
+});
+
+describe("collectLogIdsInSubtree", () => {
+  const nodes: LogNode[] = [
+    { id: "a", parentId: null, title: "A", kind: "log", createdAt: "", updatedAt: "", tiptapJson: {}, markdown: "" },
+    { id: "b", parentId: "a", title: "B", kind: "log", createdAt: "", updatedAt: "", tiptapJson: {}, markdown: "" },
+    { id: "f", parentId: null, title: "F", kind: "folder", createdAt: "", updatedAt: "", tiptapJson: {}, markdown: "" },
+    { id: "c", parentId: "f", title: "C", kind: "log", createdAt: "", updatedAt: "", tiptapJson: {}, markdown: "" }
+  ];
+
+  it("includes self and descendant logs", () => {
+    expect(collectLogIdsInSubtree(nodes, "a")).toEqual(["a", "b"]);
+  });
+
+  it("collects logs under folders", () => {
+    expect(collectLogIdsInSubtree(nodes, "f")).toEqual(["c"]);
   });
 });
 
@@ -86,27 +104,6 @@ describe("new log parent resolution", () => {
   });
 });
 
-describe("collectDescendantLogIds", () => {
-  const nodes: LogNode[] = [
-    { id: "folder", parentId: null, title: "F", kind: "folder", createdAt: "", updatedAt: "", tiptapJson: {}, markdown: "" },
-    { id: "parent", parentId: null, title: "P", kind: "log", createdAt: "", updatedAt: "", tiptapJson: {}, markdown: "" },
-    { id: "child", parentId: "parent", title: "C", kind: "log", createdAt: "", updatedAt: "", tiptapJson: {}, markdown: "" },
-    { id: "leaf", parentId: "folder", title: "L", kind: "log", createdAt: "", updatedAt: "", tiptapJson: {}, markdown: "" }
-  ];
-
-  it("includes self and descendant logs for a branch log", () => {
-    expect(collectDescendantLogIds(nodes, "parent")).toEqual(["parent", "child"]);
-  });
-
-  it("collects only logs under a folder", () => {
-    expect(collectDescendantLogIds(nodes, "folder")).toEqual(["leaf"]);
-  });
-
-  it("listAllLogIds returns every log node", () => {
-    expect(listAllLogIds(nodes).sort()).toEqual(["child", "leaf", "parent"]);
-  });
-});
-
 describe("tree sibling order by createdAt", () => {
   const nodes: LogNode[] = [
     { id: "b", parentId: null, title: "B", kind: "log", createdAt: "2024-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", tiptapJson: {}, markdown: "" },
@@ -120,5 +117,30 @@ describe("tree sibling order by createdAt", () => {
 
   it("compareByCreatedAtAsc sorts ascending", () => {
     expect(compareByCreatedAtAsc(nodes[1], nodes[0])).toBeLessThan(0);
+  });
+});
+
+describe("manual sibling order", () => {
+  const nodes: LogNode[] = [
+    { id: "a", parentId: null, title: "A", kind: "log", createdAt: "2020-01-01T00:00:00.000Z", updatedAt: "", tiptapJson: {}, markdown: "" },
+    { id: "b", parentId: null, title: "B", kind: "log", createdAt: "2024-01-01T00:00:00.000Z", updatedAt: "", tiptapJson: {}, markdown: "" },
+    { id: "c", parentId: null, title: "C", kind: "log", createdAt: "2022-01-01T00:00:00.000Z", updatedAt: "", tiptapJson: {}, markdown: "", sortOrder: 0 }
+  ];
+
+  it("compareBySiblingOrder prefers sortOrder", () => {
+    expect(compareBySiblingOrder(nodes[2], nodes[0])).toBeLessThan(0);
+  });
+
+  it("reorderNodeBefore moves node ahead of target", () => {
+    const next = reorderNodeBefore(nodes, "b", "a");
+    expect(getChildrenSorted(next, null).map((n) => n.id)).toEqual(["c", "b", "a"]);
+  });
+
+  it("reorderNodeBefore ignores different parents", () => {
+    const withChild: LogNode[] = [
+      ...nodes,
+      { id: "x", parentId: "a", title: "X", kind: "log", createdAt: "", updatedAt: "", tiptapJson: {}, markdown: "" }
+    ];
+    expect(reorderNodeBefore(withChild, "b", "x")).toBe(withChild);
   });
 });

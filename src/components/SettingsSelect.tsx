@@ -11,16 +11,21 @@ type Props = {
   options: SettingsSelectOption[];
   onChange: (value: string) => void;
   id?: string;
+  disabled?: boolean;
   "aria-labelledby"?: string;
 };
 
-export function SettingsSelect({ value, options, onChange, id, "aria-labelledby": labelledBy }: Props) {
+export function SettingsSelect({ value, options, onChange, id, disabled = false, "aria-labelledby": labelledBy }: Props) {
   const autoId = useId();
   const listboxId = `${autoId}-listbox`;
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const selected = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    if (disabled) setOpen(false);
+  }, [disabled]);
 
   useEffect(() => {
     if (!open) return;
@@ -44,11 +49,15 @@ export function SettingsSelect({ value, options, onChange, id, "aria-labelledby"
         id={id}
         type="button"
         className={`settings-select__trigger${open ? " is-open" : ""}`}
+        disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
         aria-labelledby={labelledBy}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (disabled) return;
+          setOpen((v) => !v);
+        }}
       >
         <span className="settings-select__value">{selected?.label ?? value}</span>
         <ChevronDown size={16} className="settings-select__chevron" aria-hidden />

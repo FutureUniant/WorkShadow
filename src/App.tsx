@@ -8,8 +8,8 @@ import { EditorPane } from "./components/EditorPane";
 import { LogTree } from "./components/LogTree";
 import { MoveTargetDialog } from "./components/MoveTargetDialog";
 import { SearchPanel } from "./components/SearchPanel";
-import { SettingsPanel } from "./components/SettingsPanel";
-import { WorkspaceDrawer } from "./components/WorkspaceDrawer";
+import { SettingsPanel, type SettingsMajor } from "./components/SettingsPanel";
+import { WorkspaceDrawer, type WorkspaceAskPhase, type WorkspaceTab } from "./components/WorkspaceDrawer";
 import { defaultState } from "./defaults";
 import { useConfirm } from "./hooks/useConfirm";
 import { usePrompt } from "./hooks/usePrompt";
@@ -21,13 +21,23 @@ import { applyGlobalNewLogShortcut, clearGlobalShortcuts } from "./services/glob
 import { tiptapToMarkdown } from "./services/markdown";
 import { beginActivity, endActivity } from "./services/activityHub";
 import { hasEmbeddingConfig, WorkshadowRag } from "./services/rag";
-import { didLastLoadUseFallback, loadState, isTauriRuntime, persistLogFiles, persistState } from "./services/storage";
+import {
+  didLastLoadUseFallback,
+  loadState,
+  isTauriRuntime,
+  persistLogFiles,
+  persistState
+} from "./services/storage";
 import { normalizeDocumentGenerationPrefs } from "./services/documentPrefs";
 import { logUserAction } from "./services/apiTrace";
+import { upsertModelProfile } from "./services/modelProfiles";
 import { isLocaleZhFromSettings, resolveEffectiveLanguage } from "./services/appLocale";
-import { askLogsFromRag, type AskLogsFromRagCallbacks } from "./services/logQa";
+import { askLogsFromRag, type LogQaRetrievedExcerpt, type LogQaSource } from "./services/logQa";
+import { generateLogSummary, type ReportStylePreferences } from "./services/insightsReports";
+import { isLlmInputTooLongError } from "./services/llmInputLimits";
 import { formatShortcutParts, matchesShortcut, shortcutBindingFingerprint } from "./services/shortcuts";
 import {
+  appendNodesToSiblingOrder,
   createNode,
   duplicateNode,
   getChildren,
@@ -35,12 +45,15 @@ import {
   normalizeSelectionToRoots,
   parentIdForNewChild,
   parentIdForNewSibling,
+  reorderNodeBefore,
   wouldCreateCycle
 } from "./services/tree";
-import type { AppSettings, AppState, LogChunk, LogNode, SearchResult } from "./types";
+import type { AppState, LogChunk, LogNode, ModelConfig, SearchResult } from "./types";
 import appLogoDark from "./assets/AppDark.png";
 import appLogoLight from "./assets/AppLight.png";
 import { applyBootSplashLogos, dismissBootSplash, persistBootTheme } from "./bootSplash";
+import { openLogWindow } from "./services/logWindow";
+import { listenLogNodeUpdated } from "./services/logWindowSync";
 
 export default function App() {
   const { t, i18n } = useTranslation();
@@ -49,6 +62,7 @@ export default function App() {
   const [activeId, setActiveId] = useState<string | null>(defaultState.nodes[1]?.id ?? null);
   const [preview, setPreview] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialMajor, setSettingsInitialMajor] = useState<SettingsMajor | undefined>();
   const [batchOpen, setBatchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -58,8 +72,23 @@ export default function App() {
   const { options: promptOptions, prompt, settle: settlePrompt } = usePrompt();
   const [moveDialogNodeId, setMoveDialogNodeId] = useState<string | null>(null);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("summary");
+  const [workspaceReport, setWorkspaceReport] = useState({
+    out: "",
+    busy: false,
+    inputError: null as string | null
+  });
+  const [workspaceAskQuestion, setWorkspaceAskQuestion] = useState("");
+  const [workspaceAsk, setWorkspaceAsk] = useState({
+    answer: "",
+    sources: [] as LogQaSource[],
+    excerpts: [] as LogQaRetrievedExcerpt[],
+    phase: "idle" as WorkspaceAskPhase
+  });
   const activeIdRef = useRef(activeId);
   const stateRef = useRef(state);
+  const workspaceOpenRef = useRef(workspaceOpen);
+  const workspaceTabRef = useRef(workspaceTab);
   const keywordSearchNoticeShownRef = useRef(false);
   const embeddingFlushRef = useRef<(() => Promise<void>) | null>(null);
   const initialIndexStartedRef = useRef(false);
@@ -67,9 +96,11 @@ export default function App() {
   const skipNextPersistRef = useRef(false);
   activeIdRef.current = activeId;
   stateRef.current = state;
+  workspaceOpenRef.current = workspaceOpen;
+  workspaceTabRef.current = workspaceTab;
 
   const insertNewLog = useCallback((parentId: string | null) => {
-    const node = createNode(parentId, "log");
+    const node = createNode(parentId, "log", undefined, stateRef.current.nodes);
     const cur = stateRef.current;
     const nextNodes = [...cur.nodes, node];
     setState((current) => ({
@@ -131,6 +162,20 @@ export default function App() {
   }, [i18n, state.settings.language, state.settings.theme]);
 
   useEffect(() => {
+    if (!loaded || !isTauriRuntime()) return;
+    let unlisten: (() => void) | undefined;
+    void listenLogNodeUpdated((node) => {
+      setState((current) => ({
+        ...current,
+        nodes: current.nodes.map((item) => (item.id === node.id ? node : item))
+      }));
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
+  }, [loaded]);
+
+  useEffect(() => {
     if (!loaded) return;
     if (skipNextPersistRef.current) {
       skipNextPersistRef.current = false;
@@ -145,12 +190,20 @@ export default function App() {
   }, [loaded, state]);
 
   useEffect(() => {
-    const listener = (event: Event) => {
+    const onMove = (event: Event) => {
       const detail = (event as CustomEvent<{ nodeId: string; parentId: string }>).detail;
       moveNodes([detail.nodeId], detail.parentId);
     };
-    window.addEventListener("workshadow:move-node", listener);
-    return () => window.removeEventListener("workshadow:move-node", listener);
+    const onReorder = (event: Event) => {
+      const detail = (event as CustomEvent<{ movingId: string; targetId: string }>).detail;
+      reorderActiveBeforeTarget(detail.movingId, detail.targetId);
+    };
+    window.addEventListener("workshadow:move-node", onMove);
+    window.addEventListener("workshadow:reorder-node", onReorder);
+    return () => {
+      window.removeEventListener("workshadow:move-node", onMove);
+      window.removeEventListener("workshadow:reorder-node", onReorder);
+    };
   }, []);
 
   useEffect(() => {
@@ -191,30 +244,90 @@ export default function App() {
     reportErrorToUser("searchNotice", new Error("keyword-only"));
   }
 
-  const askLogs = useCallback(
-    async (question: string, callbacks?: AskLogsFromRagCallbacks) => {
+  const runWorkspaceSummary = useCallback(
+    (logIds: string[], preferences: ReportStylePreferences) => {
+      if (workspaceReport.busy) return;
       const snap = stateRef.current;
-      return askLogsFromRag(rag.current, question, snap.nodes, snap.settings, {
-        localeZh: isLocaleZhFromSettings(snap.settings),
-        memory: snap.memoryEntries,
-        onKeywordFallbackNotice: keywordFallbackNotice,
-        ...callbacks
-      });
+      setWorkspaceReport({ out: "", busy: true, inputError: null });
+      void (async () => {
+        try {
+          await generateLogSummary(snap.settings, {
+            logIds,
+            nodes: snap.nodes,
+            memory: snap.memoryEntries,
+            localeZh: isLocaleZhFromSettings(snap.settings),
+            preferences,
+            onDelta: (delta) => setWorkspaceReport((prev) => ({ ...prev, out: prev.out + delta }))
+          });
+          if (!workspaceOpenRef.current || workspaceTabRef.current !== "summary") {
+            reportSuccessNotice(t("workspaceSummaryDoneTitle"), t("workspaceSummaryDoneSummary"));
+          }
+        } catch (e) {
+          if (isLlmInputTooLongError(e)) {
+            setWorkspaceReport((prev) => ({ ...prev, inputError: t("workspaceSummaryInputTooLong") }));
+          } else {
+            setWorkspaceOpen(false);
+            reportErrorToUser("report", e);
+          }
+        } finally {
+          setWorkspaceReport((prev) => ({ ...prev, busy: false }));
+        }
+      })();
     },
-    []
+    [t, workspaceReport.busy]
   );
 
-  if (settingsOpen) {
-    return (
-      <div className="app-root">
-        <DesktopTitleBar />
+  const runWorkspaceAsk = useCallback(
+    (question: string) => {
+      const q = question.trim();
+      if (!q || workspaceAsk.phase !== "idle") return;
+      const snap = stateRef.current;
+      setWorkspaceAsk({ answer: "", sources: [], excerpts: [], phase: "retrieving" });
+      void (async () => {
+        try {
+          await askLogsFromRag(rag.current, q, snap.nodes, snap.settings, {
+            localeZh: isLocaleZhFromSettings(snap.settings),
+            memory: snap.memoryEntries,
+            onKeywordFallbackNotice: keywordFallbackNotice,
+            onRetrieval: ({ sources, excerpts }) => {
+              setWorkspaceAsk((prev) => ({ ...prev, sources, excerpts, phase: "answering" }));
+            },
+            onAnswerDelta: (delta) => {
+              setWorkspaceAsk((prev) => ({ ...prev, answer: prev.answer + delta }));
+            }
+          });
+          if (!workspaceOpenRef.current || workspaceTabRef.current !== "ask") {
+            reportSuccessNotice(t("workspaceAskDoneTitle"), t("workspaceAskDoneSummary"));
+          }
+        } catch (e) {
+          setWorkspaceOpen(false);
+          reportErrorToUser("report", e);
+        } finally {
+          setWorkspaceAsk((prev) => ({ ...prev, phase: "idle" }));
+        }
+      })();
+    },
+    [t, workspaceAsk.phase]
+  );
+
+  return (
+    <div className="app-root">
+      {!settingsOpen ? (
+        <a href="#main-content" className="skip-link">
+          {t("skipToMain")}
+        </a>
+      ) : null}
+      <DesktopTitleBar />
+      {settingsOpen ? (
         <SettingsPanel
           open
+          initialMajor={settingsInitialMajor}
           settings={state.settings}
           onChange={(settings) => setState((current) => ({ ...current, settings }))}
           onBack={async () => {
             await embeddingFlushRef.current?.();
             setSettingsOpen(false);
+            setSettingsInitialMajor(undefined);
           }}
           confirm={confirm}
           embeddingFlushRef={embeddingFlushRef}
@@ -231,53 +344,24 @@ export default function App() {
             await rag.current.syncFromNodes(loaded.nodes, loaded.settings);
           }}
         />
-        <BatchPanel open={batchOpen} nodes={state.nodes} onClose={() => setBatchOpen(false)} onMove={moveNodes} onDelete={deleteNodesWithConfirm} />
-        <MoveTargetDialog
-          open={moveDialogNodeId !== null}
-          nodes={state.nodes}
-          movingId={moveDialogNodeId ?? ""}
-          onClose={() => setMoveDialogNodeId(null)}
-          onConfirm={(parentId) => {
-            if (!moveDialogNodeId) return;
-            moveNodes([moveDialogNodeId], parentId);
-            setMoveDialogNodeId(null);
-          }}
-        />
-        <ConfirmDialog options={options} onClose={settle} />
-        <PromptDialog options={promptOptions} onClose={settlePrompt} />
-        <WorkspaceDrawer
-          open={workspaceOpen}
-          onClose={() => setWorkspaceOpen(false)}
-          activeLogId={activeId}
-          memoryEntries={state.memoryEntries}
-          onMemoryChange={(next) => setState((s) => ({ ...s, memoryEntries: next }))}
-          documentGenerationPrefs={state.documentGenerationPrefs}
-          onDocumentGenerationPrefsChange={(next) => setState((s) => ({ ...s, documentGenerationPrefs: next }))}
-          nodes={state.nodes}
-          settings={state.settings}
-          onAskLogs={askLogs}
-          onOpenLog={(logId) => {
-            setActiveId(logId);
-            setWorkspaceOpen(false);
-          }}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="app-root">
-      <a href="#main-content" className="skip-link">
-        {t("skipToMain")}
-      </a>
-      <DesktopTitleBar />
+      ) : (
       <div className="app" id="main-content" tabIndex={-1}>
       <aside className="sidebar">
         <header className="brand">
           <img className="brand-logo" src={appLogo} alt="" aria-label={t("appName")} width={180} height={40} decoding="async" />
-          <button className="icon-button" onClick={() => setSettingsOpen(true)} aria-label={t("settings")}>
-            <Settings size={18} />
-          </button>
+          <div className="brand-actions">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => {
+                setSettingsInitialMajor(undefined);
+                setSettingsOpen(true);
+              }}
+              aria-label={t("settings")}
+            >
+              <Settings size={18} />
+            </button>
+          </div>
         </header>
         <div className="sidebar-search-block">
           <div className={`search-box${searchFocused ? " is-focused" : ""}`}>
@@ -345,6 +429,7 @@ export default function App() {
             treeMenuCloseBinding={state.settings.shortcuts.treeMenuClose}
             onSelect={setActiveId}
             onToggle={toggleExpanded}
+            onOpenInWindow={(node) => void openLogWindow(node)}
             onAction={handleTreeAction}
           />
         </div>
@@ -388,17 +473,29 @@ export default function App() {
       <ConfirmDialog options={options} onClose={settle} />
       <PromptDialog options={promptOptions} onClose={settlePrompt} />
       </div>
+      )}
       <WorkspaceDrawer
         open={workspaceOpen}
         onClose={() => setWorkspaceOpen(false)}
+        tab={workspaceTab}
+        onTabChange={setWorkspaceTab}
         activeLogId={activeId}
         memoryEntries={state.memoryEntries}
         onMemoryChange={(next) => setState((s) => ({ ...s, memoryEntries: next }))}
         documentGenerationPrefs={state.documentGenerationPrefs}
         onDocumentGenerationPrefsChange={(next) => setState((s) => ({ ...s, documentGenerationPrefs: next }))}
         nodes={state.nodes}
-        settings={state.settings}
-        onAskLogs={askLogs}
+        reportOut={workspaceReport.out}
+        reportBusy={workspaceReport.busy}
+        reportInputError={workspaceReport.inputError}
+        onRunSummary={runWorkspaceSummary}
+        askQuestion={workspaceAskQuestion}
+        askAnswer={workspaceAsk.answer}
+        askSources={workspaceAsk.sources}
+        askExcerpts={workspaceAsk.excerpts}
+        askPhase={workspaceAsk.phase}
+        onAskQuestionChange={setWorkspaceAskQuestion}
+        onRunAsk={runWorkspaceAsk}
         onOpenLog={(logId) => {
           setActiveId(logId);
           setWorkspaceOpen(false);
@@ -469,14 +566,25 @@ export default function App() {
     void rag.current.syncFromNodes(nextNodes, current.settings).catch((e) => reportErrorToUser("index", e));
   }
 
+  function reorderActiveBeforeTarget(movingId: string, targetId: string) {
+    const current = stateRef.current;
+    const nextNodes = reorderNodeBefore(current.nodes, movingId, targetId);
+    if (nextNodes === current.nodes) return;
+    setState((s) => ({ ...s, nodes: nextNodes }));
+    void rag.current.syncFromNodes(nextNodes, current.settings).catch((e) => reportErrorToUser("index", e));
+  }
+
   function moveNodes(ids: string[], parentId: string | null) {
     const current = stateRef.current;
     const roots = normalizeSelectionToRoots(current.nodes, ids);
     const moving = new Set(roots);
     const validIds = roots.filter((id) => !wouldCreateCycle(current.nodes, id, parentId) && !moving.has(parentId ?? ""));
-    const nextNodes = current.nodes.map((node) =>
+    let nextNodes = current.nodes.map((node) =>
       validIds.includes(node.id) ? { ...node, parentId, updatedAt: new Date().toISOString() } : node
     );
+    if (validIds.length > 0) {
+      nextNodes = appendNodesToSiblingOrder(nextNodes, parentId, validIds);
+    }
     setState((s) => ({ ...s, nodes: nextNodes }));
     void rag.current.syncFromNodes(nextNodes, current.settings).catch((e) => reportErrorToUser("index", e));
   }
@@ -498,13 +606,14 @@ export default function App() {
   }
 
   async function handleEmbeddingCommit(
-    patch: Pick<AppSettings, "embedding" | "embeddingProfiles">,
+    embedding: ModelConfig,
     options: { needsVectorRebuild: boolean; forceReindex?: boolean }
   ) {
     if (embeddingSyncInFlightRef.current) return;
     embeddingSyncInFlightRef.current = true;
     const cur = stateRef.current;
-    const nextSettings = { ...cur.settings, ...patch };
+    const embeddingProfiles = upsertModelProfile(cur.settings.embeddingProfiles, embedding);
+    const nextSettings = { ...cur.settings, embedding, embeddingProfiles };
     setState((s) => ({ ...s, settings: nextSettings }));
     if (!hasEmbeddingConfig(nextSettings)) {
       embeddingSyncInFlightRef.current = false;
@@ -518,10 +627,7 @@ export default function App() {
       });
       reportSuccessNotice(
         t("embeddingIndexDoneTitle"),
-        t("embeddingIndexDoneSummary", {
-          count: chunks.length,
-          model: patch.embedding.model.trim()
-        })
+        t("embeddingIndexDoneSummary", { count: chunks.length, model: embedding.model.trim() })
       );
     } catch (e) {
       reportErrorToUser("index", e);
@@ -548,6 +654,7 @@ export default function App() {
       paths = await persistLogFiles(snap.settings, snap.nodes, savedNode);
     } catch (e) {
       endActivity(saveId, e instanceof Error ? e.message : String(e));
+      reportErrorToUser("writeLog", e, { severity: "toast" });
       throw e;
     }
     endActivity(saveId);
@@ -556,7 +663,7 @@ export default function App() {
     try {
       chunks = await rag.current.syncFromNodes(nextNodes, snap.settings);
     } catch (e) {
-      reportErrorToUser("index", e, { logId: savedNode.id });
+      reportErrorToUser("index", e, { logId: savedNode.id, severity: "toast" });
       setState((current) => ({
         ...current,
         nodes: nextNodes,
@@ -586,6 +693,7 @@ export default function App() {
         }
       ]
     }));
+    reportSuccessNotice(t("saveDoneTitle"), t("saveDoneSummary", { title: savedNode.title }));
   }
 
   async function runSearch() {

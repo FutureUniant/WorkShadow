@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { consumeSseChatBuffer, extractContentDeltaFromSseLine } from "./ai";
+import { consumeSseChatBuffer, extractContentDeltaFromAnthropicSseLine, extractContentDeltaFromSseLine } from "./ai";
 
 describe("extractContentDeltaFromSseLine", () => {
   it("parses content delta", () => {
@@ -28,5 +28,16 @@ describe("consumeSseChatBuffer", () => {
     );
     expect(full).toBe("AB");
     expect(onDelta).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("extractContentDeltaFromAnthropicSseLine", () => {
+  it("parses anthropic text_delta", () => {
+    const line = 'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"hello"}}';
+    expect(extractContentDeltaFromAnthropicSseLine(line)).toBe("hello");
+  });
+
+  it("ignores non-delta anthropic events", () => {
+    expect(extractContentDeltaFromAnthropicSseLine('data: {"type":"message_start"}')).toBeNull();
   });
 });

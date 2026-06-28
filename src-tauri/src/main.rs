@@ -2,6 +2,7 @@
 
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
@@ -9,7 +10,9 @@ use thiserror::Error;
 
 mod app_log;
 mod data_bundle;
+mod device;
 mod rag;
+mod single_instance;
 
 #[derive(Debug, Error)]
 enum WorkShadowError {
@@ -40,17 +43,18 @@ impl Serialize for WorkShadowError {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ModelConfig {
-    #[serde(default)]
-    provider: Option<String>,
-    #[serde(default)]
+    #[serde(default = "default_model_provider")]
+    provider: String,
     base_url: String,
-    #[serde(default)]
     api_key: String,
-    #[serde(default)]
     model: String,
+}
+
+fn default_model_provider() -> String {
+    "openaiCompatible".into()
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -73,12 +77,34 @@ struct ShortcutMap {
     lightbox_prev: ShortcutBinding,
     lightbox_next: ShortcutBinding,
     tree_menu_close: ShortcutBinding,
+    #[serde(default = "default_text_completion_prev_shortcut")]
+    text_completion_prev: ShortcutBinding,
+    #[serde(default = "default_text_completion_next_shortcut")]
+    text_completion_next: ShortcutBinding,
 }
 
 fn default_shortcut(code: &str, mod_kind: &str) -> ShortcutBinding {
     ShortcutBinding {
         code: code.to_string(),
         mod_kind: mod_kind.to_string(),
+        shift: false,
+        alt: false,
+    }
+}
+
+fn default_text_completion_prev_shortcut() -> ShortcutBinding {
+    ShortcutBinding {
+        code: "ArrowUp".into(),
+        mod_kind: "ctrl".into(),
+        shift: false,
+        alt: false,
+    }
+}
+
+fn default_text_completion_next_shortcut() -> ShortcutBinding {
+    ShortcutBinding {
+        code: "ArrowDown".into(),
+        mod_kind: "ctrl".into(),
         shift: false,
         alt: false,
     }
@@ -101,6 +127,8 @@ fn default_shortcuts() -> ShortcutMap {
         lightbox_prev: default_shortcut("ArrowLeft", "none"),
         lightbox_next: default_shortcut("ArrowRight", "none"),
         tree_menu_close: default_shortcut("Escape", "none"),
+        text_completion_prev: default_text_completion_prev_shortcut(),
+        text_completion_next: default_text_completion_next_shortcut(),
     }
 }
 
@@ -114,17 +142,23 @@ pub(crate) struct AppSettings {
     media_strategy: String,
     llm: ModelConfig,
     #[serde(default)]
-    llm_profiles: Option<std::collections::HashMap<String, ModelConfig>>,
+    llm_profiles: HashMap<String, ModelConfig>,
     vlm: ModelConfig,
     embedding: ModelConfig,
     #[serde(default)]
-    embedding_profiles: Option<std::collections::HashMap<String, ModelConfig>>,
+    embedding_profiles: HashMap<String, ModelConfig>,
     #[serde(default = "default_semantic_min_similarity")]
     semantic_min_similarity: f32,
     #[serde(default = "default_search_result_order")]
     search_result_order: String,
     #[serde(default = "default_shortcuts")]
     shortcuts: ShortcutMap,
+    #[serde(default = "default_text_completion_enabled", alias = "askSuggestionsEnabled")]
+    text_completion_enabled: bool,
+}
+
+fn default_text_completion_enabled() -> bool {
+    true
 }
 
 fn default_search_result_order() -> String {
@@ -142,6 +176,8 @@ struct LogNode {
     parent_id: Option<String>,
     title: String,
     kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    sort_order: Option<i64>,
     created_at: String,
     updated_at: String,
     tiptap_json: serde_json::Value,
@@ -178,6 +214,14 @@ struct DocumentGenerationPref {
     updated_at: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CompletionUsageStat {
+    phrase: String,
+    accept_count: u32,
+    last_accepted_at: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AppState {
@@ -189,6 +233,10 @@ struct AppState {
     memory_entries: Vec<MemoryEntry>,
     #[serde(default)]
     document_generation_prefs: Vec<DocumentGenerationPref>,
+    #[serde(default, alias = "askQuestionHistory")]
+    completion_personal_snippets: Vec<String>,
+    #[serde(default)]
+    completion_usage_stats: Vec<CompletionUsageStat>,
 }
 
 #[derive(Debug, Serialize)]
@@ -304,6 +352,7 @@ pub(crate) fn connection(app: &tauri::AppHandle) -> Result<Connection, WorkShado
             parent_id TEXT,
             title TEXT NOT NULL,
             kind TEXT NOT NULL,
+            sort_order INTEGER,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             tiptap_json TEXT NOT NULL,
@@ -326,7 +375,24 @@ pub(crate) fn connection(app: &tauri::AppHandle) -> Result<Connection, WorkShado
         );
         ",
     )?;
+    migrate_nodes_sort_order(&conn)?;
     Ok(conn)
+}
+
+/// 为旧库补 `sort_order` 列（侧栏手动排序持久化）。
+fn migrate_nodes_sort_order(conn: &Connection) -> Result<(), rusqlite::Error> {
+    let has_column = conn
+        .prepare("PRAGMA table_info(nodes)")?
+        .query_map([], |row| {
+            let name: String = row.get(1)?;
+            Ok(name == "sort_order")
+        })?
+        .filter_map(Result::ok)
+        .any(|v| v);
+    if !has_column {
+        conn.execute("ALTER TABLE nodes ADD COLUMN sort_order INTEGER", [])?;
+    }
+    Ok(())
 }
 
 pub(crate) fn read_app_state_from_conn(conn: &Connection) -> Result<AppState, WorkShadowError> {
@@ -335,22 +401,23 @@ pub(crate) fn read_app_state_from_conn(conn: &Connection) -> Result<AppState, Wo
         .map_err(|_| WorkShadowError::Rag("database has no app settings".into()))?;
     let settings: AppSettings = serde_json::from_str(&settings_json)?;
     let mut nodes_stmt = conn.prepare(
-        "SELECT id, parent_id, title, kind, created_at, updated_at, tiptap_json, markdown, markdown_path, json_path FROM nodes",
+        "SELECT id, parent_id, title, kind, sort_order, created_at, updated_at, tiptap_json, markdown, markdown_path, json_path FROM nodes",
     )?;
     let nodes = nodes_stmt
         .query_map([], |row| {
-            let json: String = row.get(6)?;
+            let json: String = row.get(7)?;
             Ok(LogNode {
                 id: row.get(0)?,
                 parent_id: row.get(1)?,
                 title: row.get(2)?,
                 kind: row.get(3)?,
-                created_at: row.get(4)?,
-                updated_at: row.get(5)?,
+                sort_order: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
                 tiptap_json: serde_json::from_str(&json).unwrap_or(serde_json::json!({"type":"doc","content":[]})),
-                markdown: row.get(7)?,
-                markdown_path: row.get(8)?,
-                json_path: row.get(9)?,
+                markdown: row.get(8)?,
+                markdown_path: row.get(9)?,
+                json_path: row.get(10)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -400,6 +467,35 @@ pub(crate) fn read_app_state_from_conn(conn: &Connection) -> Result<AppState, Wo
         })?
         .collect::<Result<Vec<_>, _>>()?;
 
+    let completion_personal_snippets: Vec<String> = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'completionPersonalSnippets'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+        .and_then(|value| serde_json::from_str(&value).ok())
+        .or_else(|| {
+            conn.query_row(
+                "SELECT value FROM settings WHERE key = 'askQuestionHistory'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .ok()
+            .and_then(|value| serde_json::from_str(&value).ok())
+        })
+        .unwrap_or_default();
+
+    let completion_usage_stats: Vec<CompletionUsageStat> = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'completionUsageStats'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+        .and_then(|value| serde_json::from_str(&value).ok())
+        .unwrap_or_default();
+
     Ok(AppState {
         settings,
         nodes,
@@ -407,6 +503,8 @@ pub(crate) fn read_app_state_from_conn(conn: &Connection) -> Result<AppState, Wo
         index_status,
         memory_entries,
         document_generation_prefs,
+        completion_personal_snippets,
+        completion_usage_stats,
     })
 }
 
@@ -451,13 +549,14 @@ fn save_app_state(app: tauri::AppHandle, state: AppState) -> Result<(), WorkShad
     for node in state.nodes {
         tx.execute(
             "INSERT INTO nodes
-            (id, parent_id, title, kind, created_at, updated_at, tiptap_json, markdown, markdown_path, json_path)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            (id, parent_id, title, kind, sort_order, created_at, updated_at, tiptap_json, markdown, markdown_path, json_path)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 node.id,
                 node.parent_id,
                 node.title,
                 node.kind,
+                node.sort_order,
                 node.created_at,
                 node.updated_at,
                 serde_json::to_string(&node.tiptap_json)?,
@@ -479,6 +578,16 @@ fn save_app_state(app: tauri::AppHandle, state: AppState) -> Result<(), WorkShad
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![serde_json::to_string(&state.memory_entries)?],
     )?;
+    tx.execute(
+        "INSERT INTO settings (key, value) VALUES ('completionPersonalSnippets', ?1)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![serde_json::to_string(&state.completion_personal_snippets)?],
+    )?;
+    tx.execute(
+        "INSERT INTO settings (key, value) VALUES ('completionUsageStats', ?1)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![serde_json::to_string(&state.completion_usage_stats)?],
+    )?;
     tx.execute("DELETE FROM document_generation_prefs", [])?;
     for pref in state.document_generation_prefs {
         tx.execute(
@@ -488,6 +597,16 @@ fn save_app_state(app: tauri::AppHandle, state: AppState) -> Result<(), WorkShad
         )?;
     }
     tx.commit()?;
+    Ok(())
+}
+
+#[tauri::command]
+fn write_text_file(path: String, content: String) -> Result<(), WorkShadowError> {
+    let target = PathBuf::from(path);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&target, content)?;
     Ok(())
 }
 
@@ -535,14 +654,15 @@ fn default_state() -> AppState {
         log_directory: "".into(),
         temp_directory: "".into(),
         media_strategy: "reference".into(),
-        llm: ModelConfig::default(),
-        llm_profiles: None,
-        vlm: ModelConfig::default(),
-        embedding: ModelConfig::default(),
-        embedding_profiles: None,
+        llm: ModelConfig { provider: default_model_provider(), base_url: "".into(), api_key: "".into(), model: "".into() },
+        llm_profiles: HashMap::new(),
+        vlm: ModelConfig { provider: default_model_provider(), base_url: "".into(), api_key: "".into(), model: "".into() },
+        embedding: ModelConfig { provider: default_model_provider(), base_url: "".into(), api_key: "".into(), model: "".into() },
+        embedding_profiles: HashMap::new(),
         semantic_min_similarity: default_semantic_min_similarity(),
         search_result_order: default_search_result_order(),
         shortcuts: default_shortcuts(),
+        text_completion_enabled: default_text_completion_enabled(),
     };
     AppState {
         settings,
@@ -552,6 +672,7 @@ fn default_state() -> AppState {
                 parent_id: None,
                 title: "工作".into(),
                 kind: "log".into(),
+                sort_order: None,
                 created_at: now.clone(),
                 updated_at: now.clone(),
                 tiptap_json: empty_doc.clone(),
@@ -564,6 +685,7 @@ fn default_state() -> AppState {
                 parent_id: Some("root-work".into()),
                 title: "第一篇日志".into(),
                 kind: "log".into(),
+                sort_order: None,
                 created_at: now.clone(),
                 updated_at: now,
                 tiptap_json: empty_doc,
@@ -576,51 +698,31 @@ fn default_state() -> AppState {
         index_status: vec![],
         memory_entries: vec![],
         document_generation_prefs: vec![],
+        completion_personal_snippets: vec![],
+        completion_usage_stats: vec![],
     }
 }
 
-/// 在光标所在显示器（或当前/主显示器）上居中窗口，避免多屏时落在虚拟桌面正中。
-fn center_window_on_active_monitor(window: &tauri::WebviewWindow) {
-    use tauri::PhysicalPosition;
-
-    let monitor = window
-        .cursor_position()
-        .ok()
-        .and_then(|pos| window.monitor_from_point(pos.x, pos.y).ok().flatten())
-        .or_else(|| window.current_monitor().ok().flatten())
-        .or_else(|| window.primary_monitor().ok().flatten());
-
-    let Some(monitor) = monitor else {
-        let _ = window.center();
-        return;
-    };
-
-    let Ok(win_size) = window.outer_size() else {
-        let _ = window.center();
-        return;
-    };
-
-    let mon_pos = monitor.position();
-    let mon_size = monitor.size();
-    let x = mon_pos.x + (mon_size.width as i32 - win_size.width as i32) / 2;
-    let y = mon_pos.y + (mon_size.height as i32 - win_size.height as i32) / 2;
-    let _ = window.set_position(PhysicalPosition::new(x, y));
-}
-
 fn main() {
+    single_instance::guard();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             app_log::init(app.handle());
             if let Some(window) = app.get_webview_window("main") {
-                center_window_on_active_monitor(&window);
+                let _ = window.center();
             }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            device::get_device_fingerprint,
             load_app_state,
             save_app_state,
+            write_text_file,
             write_log_files,
             app_log::app_timezone_init,
             app_log::app_log_write,

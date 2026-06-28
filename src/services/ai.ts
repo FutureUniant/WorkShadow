@@ -1,13 +1,11 @@
 import type { AppSettings, ModelConfig } from "../types";
 import { isDevVerboseApiLogging, logLlmRequest, logLlmResponse, logUserAction } from "./apiTrace";
-import { modelConfigForRequest } from "./modelProviders";
 import {
-  buildOpenAiHeaders,
-  extractChatChoiceText,
-  extractChatDeltaText,
-  isModelConfigReady,
-  openAiChatCompletionsUrl
-} from "./openaiCompat";
+  extractChatCompletionDeltaFromSseLine,
+  extractChatCompletionText
+} from "./chatCompletionParse";
+import { readChatCompletionStream } from "./chatCompletionStream";
+import { modelConfigForRequest, modelProtocol } from "./modelProviders";
 
 interface ChatMessage {
   role: "system" | "user";
@@ -27,23 +25,7 @@ export interface StreamChatTextOptions {
 
 /** 从 OpenAI 兼容 SSE 单行解析 content delta；非 data 行或 [DONE] 返回 null */
 export function extractContentDeltaFromSseLine(line: string): string | null {
-  const trimmed = line.trim();
-  if (!trimmed.startsWith("data:")) return null;
-  const payload = trimmed.slice(5).trim();
-  if (!payload || payload === "[DONE]") return null;
-  try {
-    const json = JSON.parse(payload) as {
-      choices?: Array<{ delta?: { content?: string | null }; message?: { content?: string } }>;
-    };
-    const choice = json.choices?.[0];
-    const fromDelta = extractChatDeltaText(choice?.delta);
-    if (fromDelta) return fromDelta;
-    const fromMessage = extractChatDeltaText(choice?.message);
-    if (fromMessage) return fromMessage;
-  } catch {
-    return null;
-  }
-  return null;
+  return extractChatCompletionDeltaFromSseLine(line);
 }
 
 /** 将 SSE 文本块按行解析并回调增量（供测试与流式读取共用） */
@@ -60,13 +42,34 @@ export function consumeSseChatBuffer(buffer: string, onDelta: (delta: string) =>
   return out;
 }
 
-export async function readChatCompletionStream(
+export function extractContentDeltaFromAnthropicSseLine(line: string): string | null {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("data:")) return null;
+  const payload = trimmed.slice(5).trim();
+  if (!payload || payload === "[DONE]") return null;
+  try {
+    const json = JSON.parse(payload) as {
+      type?: string;
+      delta?: { type?: string; text?: string };
+    };
+    if (json.type === "content_block_delta" && json.delta?.type === "text_delta" && json.delta.text) {
+      return json.delta.text;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export { readChatCompletionStream } from "./chatCompletionStream";
+
+async function readAnthropicMessageStream(
   response: Response,
   onDelta: (delta: string) => void
 ): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) {
-    throw new Error("LLM stream response has no body");
+    throw new Error("Anthropic stream response has no body");
   }
   const decoder = new TextDecoder();
   let buffer = "";
@@ -78,7 +81,7 @@ export async function readChatCompletionStream(
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
     for (const line of lines) {
-      const delta = extractContentDeltaFromSseLine(line);
+      const delta = extractContentDeltaFromAnthropicSseLine(line);
       if (delta) {
         full += delta;
         onDelta(delta);
@@ -86,7 +89,7 @@ export async function readChatCompletionStream(
     }
   }
   if (buffer.trim()) {
-    const delta = extractContentDeltaFromSseLine(buffer);
+    const delta = extractContentDeltaFromAnthropicSseLine(buffer);
     if (delta) {
       full += delta;
       onDelta(delta);
@@ -101,13 +104,16 @@ async function postChatCompletions(
   errorLabel: string,
   init?: RequestInit
 ) {
-  const ready = modelConfigForRequest(config);
-  if (!isModelConfigReady(ready)) {
+  const normalized = modelConfigForRequest(config);
+  if (!normalized.baseUrl || !normalized.apiKey || !normalized.model) {
     return null;
   }
-  const response = await fetch(openAiChatCompletionsUrl(ready.baseUrl), {
+  const response = await fetch(`${normalized.baseUrl.replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
-    headers: buildOpenAiHeaders(ready.apiKey),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${normalized.apiKey}`
+    },
     body: JSON.stringify(body),
     signal: init?.signal
   });
@@ -117,16 +123,68 @@ async function postChatCompletions(
   return response;
 }
 
+async function postAnthropicMessages(
+  config: ModelConfig,
+  body: Record<string, unknown>,
+  errorLabel: string,
+  init?: RequestInit
+) {
+  const normalized = modelConfigForRequest(config);
+  if (!normalized.baseUrl || !normalized.apiKey || !normalized.model) {
+    return null;
+  }
+  const response = await fetch(`${normalized.baseUrl.replace(/\/$/, "")}/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": normalized.apiKey,
+      "anthropic-version": "2023-06-01"
+    },
+    body: JSON.stringify(body),
+    signal: init?.signal
+  });
+  if (!response.ok) {
+    throw new Error(`${errorLabel} request failed: ${response.status} ${response.statusText}`);
+  }
+  return response;
+}
+
+function anthropicMessages(config: ModelConfig, messages: ChatMessage[]) {
+  const normalized = modelConfigForRequest(config);
+  const system = messages.find((m) => m.role === "system")?.content;
+  const userMessages = messages
+    .filter((m) => m.role !== "system")
+    .map((m) => ({ role: m.role, content: m.content }));
+  return {
+    model: normalized.model,
+    system,
+    messages: userMessages,
+    temperature: 0.2,
+    max_tokens: 4096
+  };
+}
+
 async function callChatCompletions(config: ModelConfig, messages: ChatMessage[], errorLabel: string) {
-  const ready = modelConfigForRequest(config);
+  if (modelProtocol(config) === "anthropic") {
+    const response = await postAnthropicMessages(config, anthropicMessages(config, messages), errorLabel);
+    if (!response) return null;
+    const data = (await response.json()) as { content?: Array<{ type?: string; text?: string }> };
+    return data.content?.find((part) => part.type === "text" && part.text)?.text?.trim() ?? null;
+  }
+
+  const normalized = modelConfigForRequest(config);
   const response = await postChatCompletions(
-    ready,
-    { model: ready.model, messages, temperature: 0.2 },
+    config,
+    { model: normalized.model, messages, temperature: 0.2 },
     errorLabel
   );
   if (!response) return null;
-  const data = (await response.json()) as { choices?: unknown[] };
-  return extractChatChoiceText(data.choices?.[0]) ?? null;
+  const data = await response.json();
+  return extractChatCompletionText(data) || null;
+}
+
+function resolveLlmConfig(settings: AppSettings): ModelConfig {
+  return modelConfigForRequest(settings.llm);
 }
 
 /** 文本 LLM：用于日志总结、日志问答等（使用设置中的 LLM 配置） */
@@ -136,8 +194,8 @@ export async function completeChatText(
   user: string,
   meta?: CompleteChatTextMeta
 ): Promise<string> {
-  const llm = modelConfigForRequest(settings.llm);
-  const model = llm.model.trim();
+  const config = resolveLlmConfig(settings);
+  const model = config.model.trim();
   const purpose = meta?.purpose ?? "llm";
 
   if (isDevVerboseApiLogging()) {
@@ -151,7 +209,7 @@ export async function completeChatText(
   }
 
   const text = await callChatCompletions(
-    llm,
+    config,
     [
       { role: "system", content: system },
       { role: "user", content: user }
@@ -177,18 +235,49 @@ export async function streamChatText(
   user: string,
   options: StreamChatTextOptions
 ): Promise<string> {
-  const llm = modelConfigForRequest(settings.llm);
-  const model = llm.model.trim();
+  const config = resolveLlmConfig(settings);
+  const model = config.model.trim();
   const purpose = options.purpose;
 
   if (isDevVerboseApiLogging()) {
     await logLlmRequest(purpose, system, user, model);
   }
 
+  if (modelProtocol(config) === "anthropic") {
+    const response = await postAnthropicMessages(
+      config,
+      {
+        ...anthropicMessages(config, [
+          { role: "system", content: system },
+          { role: "user", content: user }
+        ]),
+        stream: true
+      },
+      "LLM stream",
+      { signal: options.signal }
+    );
+
+    if (!response) {
+      throw new Error("LLM is not configured. Set Base URL, API Key, and model in Settings.");
+    }
+
+    const text = (await readAnthropicMessageStream(response, options.onDelta)).trim();
+    if (!text) {
+      throw new Error("Anthropic stream returned empty text. Check model and API key.");
+    }
+
+    if (isDevVerboseApiLogging()) {
+      await logLlmResponse(purpose, text, model);
+    }
+
+    return text;
+  }
+
+  const normalized = modelConfigForRequest(config);
   const response = await postChatCompletions(
-    llm,
+    config,
     {
-      model: llm.model,
+      model: normalized.model,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user }

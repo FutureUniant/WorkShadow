@@ -1,170 +1,110 @@
-import {
-  applyModelProvider,
-  getModelProviderPreset,
-  inferProviderFromBaseUrl,
-  isApiKeyOptionalForProvider,
-  isModelProvider,
-  normalizeModelProvider,
-  type ModelProvider
-} from "./modelProviders";
-import type { ModelConfig, ModelProfiles } from "../types";
+import type { ModelConfig, ModelProvider, ModelProfiles } from "../types";
+import { applyModelProvider, MODEL_PROVIDER_PRESETS, normalizeModelProvider } from "./modelProviders";
 
-export function emptyModelConfig(provider: ModelProvider = "openaiCompatible"): ModelConfig {
-  return applyModelProvider(provider);
+const PROVIDER_IDS = new Set<ModelProvider>(MODEL_PROVIDER_PRESETS.map((preset) => preset.id));
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function normalizeModelConfig(raw: unknown, fallbackProvider?: ModelProvider): ModelConfig {
-  const m = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
-  const baseUrl = typeof m.baseUrl === "string" ? m.baseUrl : "";
-  const provider =
-    m.provider !== undefined
-      ? normalizeModelProvider(m.provider)
-      : (fallbackProvider ?? inferProviderFromBaseUrl(baseUrl));
+function isKnownProviderId(id: ModelProvider): boolean {
+  return PROVIDER_IDS.has(id);
+}
+
+export function normalizeModelConfig(raw: unknown): ModelConfig {
+  const m = isPlainObject(raw) ? raw : {};
   return {
-    provider,
-    baseUrl,
+    provider: normalizeModelProvider(m.provider),
+    baseUrl: typeof m.baseUrl === "string" ? m.baseUrl : "",
     apiKey: typeof m.apiKey === "string" ? m.apiKey : "",
     model: typeof m.model === "string" ? m.model : ""
   };
 }
 
-export function coerceSingleModelProfile(raw: unknown, fallbackProvider?: ModelProvider): ModelConfig | undefined {
+/** 将历史/异常数据收敛为单条配置（数组时仅保留最后一条） */
+export function coerceSingleModelProfile(raw: unknown): ModelConfig | null {
   if (Array.isArray(raw)) {
-    const last = raw[raw.length - 1];
-    return last !== undefined ? normalizeModelConfig(last, fallbackProvider) : undefined;
+    if (raw.length === 0) return null;
+    return normalizeModelConfig(raw[raw.length - 1]);
   }
-  if (raw && typeof raw === "object") {
-    return normalizeModelConfig(raw, fallbackProvider);
-  }
-  return undefined;
+  if (!isPlainObject(raw)) return null;
+  return normalizeModelConfig(raw);
 }
 
-/** 是否为用户真实填写过的配置（仅有预设 Base URL / 默认模型名不算） */
-export function isProfileMeaningfullyStored(config: ModelConfig): boolean {
-  const provider = config.provider ?? inferProviderFromBaseUrl(config.baseUrl);
-  const preset = getModelProviderPreset(provider);
-  const apiKey = config.apiKey.trim();
-  const baseUrl = config.baseUrl.trim();
-  const model = config.model.trim();
-
-  if (apiKey) return true;
-
-  if (!isApiKeyOptionalForProvider(provider, baseUrl)) {
-    return false;
-  }
-
-  if (!baseUrl || !model) return false;
-  const presetBase = preset.baseUrl.replace(/\/+$/, "");
-  const normBase = baseUrl.replace(/\/+$/, "");
-  const urlDiffers = presetBase ? normBase !== presetBase : Boolean(normBase);
-  const modelDiffers = preset.defaultModel ? model !== preset.defaultModel : Boolean(model);
-  return urlDiffers || modelDiffers;
-}
-
-export function sanitizeModelProfiles(raw: unknown): ModelProfiles {
+/**
+ * 每个服务商至多一条 API 配置：剔除未知键，同一 provider 只保留一项。
+ */
+export function sanitizeModelProfiles(profiles: ModelProfiles | undefined): ModelProfiles {
   const out: ModelProfiles = {};
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    const provider = normalizeModelProvider(key);
-    const config = coerceSingleModelProfile(value, provider);
-    if (config && isProfileMeaningfullyStored({ ...config, provider })) {
-      out[provider] = { ...config, provider };
-    }
+  if (!profiles || typeof profiles !== "object") return out;
+
+  for (const [key, value] of Object.entries(profiles)) {
+    if (!isKnownProviderId(key as ModelProvider)) continue;
+    const provider = key as ModelProvider;
+
+    const row = coerceSingleModelProfile(value);
+    if (!row) continue;
+    out[provider] = normalizeModelConfig({ ...row, provider });
   }
+
   return out;
 }
 
-/** 从旧版 { activeProvider, configs } 迁移 */
-function migrateNestedProviderSettings(raw: unknown): { active: ModelConfig; profiles: ModelProfiles } | null {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const record = raw as Record<string, unknown>;
-  if (!("configs" in record) || !("activeProvider" in record)) return null;
+/** 从持久化数据恢复各服务商配置；并用当前生效配置回填对应项 */
+export function normalizeModelProfiles(raw: unknown, active?: ModelConfig): ModelProfiles {
+  const merged: ModelProfiles = {};
 
-  const profiles: ModelProfiles = {};
-  if (record.configs && typeof record.configs === "object" && !Array.isArray(record.configs)) {
-    for (const [key, value] of Object.entries(record.configs as Record<string, unknown>)) {
-      const provider = normalizeModelProvider(key);
-      const config = coerceSingleModelProfile(value, provider);
-      if (config) profiles[provider] = { ...config, provider };
+  if (isPlainObject(raw)) {
+    for (const [key, value] of Object.entries(raw)) {
+      if (!isKnownProviderId(key as ModelProvider)) continue;
+      const provider = key as ModelProvider;
+
+      const row = coerceSingleModelProfile(value);
+      if (!row) continue;
+      merged[provider] = normalizeModelConfig({ ...row, provider });
     }
   }
-  const activeProvider = normalizeModelProvider(record.activeProvider);
-  const active = profiles[activeProvider] ?? emptyModelConfig(activeProvider);
-  return { active, profiles };
-}
 
-export function loadModelSlot(
-  raw: unknown,
-  profilesRaw?: unknown
-): { active: ModelConfig; profiles: ModelProfiles } {
-  const migrated = migrateNestedProviderSettings(raw);
-  if (migrated) return migrated;
-  const active = normalizeModelConfig(raw);
-  return { active, profiles: normalizeModelProfiles(profilesRaw, active) };
-}
-
-export function normalizeModelProfiles(raw: unknown, active: ModelConfig): ModelProfiles {
-  const migrated = migrateNestedProviderSettings(raw);
-  if (migrated) return sanitizeModelProfiles({ ...migrated.profiles, [active.provider ?? "openaiCompatible"]: active });
-
-  const profiles = sanitizeModelProfiles(raw);
-  const provider = active.provider ?? "openaiCompatible";
-  if (!profiles[provider] && isProfileMeaningfullyStored(active)) {
-    profiles[provider] = active;
+  if (active) {
+    const provider = normalizeModelProvider(active.provider);
+    merged[provider] = normalizeModelConfig(active);
   }
-  return profiles;
+
+  return sanitizeModelProfiles(merged);
 }
 
-export function upsertModelProfile(profiles: ModelProfiles, config: ModelConfig): ModelProfiles {
-  const provider = config.provider ?? "openaiCompatible";
-  return {
-    ...profiles,
-    [provider]: { ...config, provider }
-  };
+/** 写入或覆盖某服务商的唯一配置项 */
+export function upsertModelProfile(profiles: ModelProfiles | undefined, config: ModelConfig): ModelProfiles {
+  const provider = normalizeModelProvider(config.provider);
+  const next: ModelProfiles = { ...profiles, [provider]: normalizeModelConfig({ ...config, provider }) };
+  return sanitizeModelProfiles(next);
 }
 
+/** 切换服务商：保存当前配置，加载目标服务商已存配置或预设默认值 */
 export function switchModelProviderProfile(
-  profiles: ModelProfiles,
+  profiles: ModelProfiles | undefined,
   current: ModelConfig,
   nextProvider: ModelProvider
-): { config: ModelConfig; profiles: ModelProfiles } {
-  const currentProvider = current.provider ?? "openaiCompatible";
-  let saved = profiles;
-  if (isProfileMeaningfullyStored({ ...current, provider: currentProvider })) {
-    saved = upsertModelProfile(profiles, current);
-  }
+): { profiles: ModelProfiles; active: ModelConfig } {
+  const saved = upsertModelProfile(profiles, current);
   const existing = saved[nextProvider];
-  const config = existing ?? applyModelProvider(nextProvider, { provider: nextProvider, baseUrl: "", apiKey: "", model: "" });
+  if (existing) {
+    return {
+      profiles: saved,
+      active: { ...existing, provider: nextProvider }
+    };
+  }
   return {
     profiles: saved,
-    config: { ...config, provider: nextProvider }
+    active: applyModelProvider(
+      { provider: nextProvider, baseUrl: "", apiKey: "", model: "" },
+      nextProvider
+    )
   };
 }
 
-export function modelProfilesEqual(a: ModelProfiles, b: ModelProfiles): boolean {
-  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-  for (const key of keys) {
-    if (!isModelProvider(key)) continue;
-    const left = normalizeModelConfig(a[key as ModelProvider], key as ModelProvider);
-    const right = normalizeModelConfig(b[key as ModelProvider], key as ModelProvider);
-    if (
-      left.baseUrl.trim() !== right.baseUrl.trim() ||
-      left.apiKey.trim() !== right.apiKey.trim() ||
-      left.model.trim() !== right.model.trim()
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
-export function modelConfigEqual(a: ModelConfig, b: ModelConfig): boolean {
-  const left = normalizeModelConfig(a);
-  const right = normalizeModelConfig(b);
-  return (
-    (left.provider ?? "openaiCompatible") === (right.provider ?? "openaiCompatible") &&
-    left.baseUrl.trim() === right.baseUrl.trim() &&
-    left.apiKey.trim() === right.apiKey.trim() &&
-    left.model.trim() === right.model.trim()
-  );
+export function hasStoredModelProfile(profiles: ModelProfiles | undefined, provider: ModelProvider): boolean {
+  const row = sanitizeModelProfiles(profiles)[provider];
+  if (!row) return false;
+  return Boolean(row.baseUrl || row.apiKey || row.model);
 }

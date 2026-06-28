@@ -3,7 +3,24 @@ import { emptyDoc } from "../defaults";
 import { tiptapToMarkdown } from "./markdown";
 import type { LogNode, NodeKind } from "../types";
 
-export function createNode(parentId: string | null, kind: NodeKind, title?: string): LogNode {
+export function getSiblingSortOrder(node: LogNode): number | undefined {
+  if (typeof node.sortOrder === "number" && Number.isFinite(node.sortOrder)) return node.sortOrder;
+  return undefined;
+}
+
+export function nextSiblingSortOrder(nodes: LogNode[], parentId: string | null): number {
+  const siblings = getChildren(nodes, parentId);
+  const explicit = siblings.map((n) => getSiblingSortOrder(n)).filter((o): o is number => o !== undefined);
+  if (explicit.length > 0) return Math.max(...explicit) + 1;
+  return siblings.length;
+}
+
+export function createNode(
+  parentId: string | null,
+  kind: NodeKind,
+  title?: string,
+  siblingContext?: LogNode[]
+): LogNode {
   const now = new Date().toISOString();
   const resolvedTitle = title ?? (kind === "folder" ? "新分组" : "新日志");
   return {
@@ -11,6 +28,7 @@ export function createNode(parentId: string | null, kind: NodeKind, title?: stri
     parentId,
     title: resolvedTitle,
     kind,
+    sortOrder: siblingContext ? nextSiblingSortOrder(siblingContext, parentId) : undefined,
     createdAt: now,
     updatedAt: now,
     tiptapJson: emptyDoc,
@@ -54,30 +72,59 @@ export function compareByCreatedAtAsc(a: LogNode, b: LogNode): number {
   return a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
 }
 
-/** 侧栏树：同级按创建时间从早到晚 */
+/** 侧栏树：有 sortOrder 时按手动顺序，否则按创建时间从早到晚 */
+export function compareBySiblingOrder(a: LogNode, b: LogNode): number {
+  const oa = getSiblingSortOrder(a);
+  const ob = getSiblingSortOrder(b);
+  if (oa != null && ob != null) return oa - ob;
+  if (oa != null) return -1;
+  if (ob != null) return 1;
+  return compareByCreatedAtAsc(a, b);
+}
+
+/** 侧栏树：同级排序 */
 export function getChildrenSorted(nodes: LogNode[], parentId: string | null): LogNode[] {
-  return getChildren(nodes, parentId).sort(compareByCreatedAtAsc);
+  return getChildren(nodes, parentId).sort(compareBySiblingOrder);
+}
+
+function applySiblingOrder(nodes: LogNode[], parentId: string | null, orderedIds: string[]): LogNode[] {
+  const sortById = new Map(orderedIds.map((id, index) => [id, index]));
+  const siblingIds = new Set(getChildren(nodes, parentId).map((n) => n.id));
+  return nodes.map((n) => {
+    if (!siblingIds.has(n.id)) return n;
+    const order = sortById.get(n.id);
+    return order !== undefined ? { ...n, sortOrder: order } : n;
+  });
+}
+
+/** 将 movingId 排到 targetId 之前（须为同级） */
+export function reorderNodeBefore(nodes: LogNode[], movingId: string, targetId: string): LogNode[] {
+  const moving = nodes.find((n) => n.id === movingId);
+  const target = nodes.find((n) => n.id === targetId);
+  if (!moving || !target || movingId === targetId) return nodes;
+  if (moving.parentId !== target.parentId) return nodes;
+
+  const orderedIds = getChildrenSorted(nodes, moving.parentId)
+    .map((n) => n.id)
+    .filter((id) => id !== movingId);
+  const targetIdx = orderedIds.indexOf(targetId);
+  if (targetIdx < 0) return nodes;
+  orderedIds.splice(targetIdx, 0, movingId);
+  return applySiblingOrder(nodes, moving.parentId, orderedIds);
+}
+
+/** 将 nodeIds 追加到同级列表末尾 */
+export function appendNodesToSiblingOrder(nodes: LogNode[], parentId: string | null, nodeIds: string[]): LogNode[] {
+  const ordered = getChildrenSorted(nodes, parentId)
+    .map((n) => n.id)
+    .filter((id) => !nodeIds.includes(id));
+  ordered.push(...nodeIds);
+  return applySiblingOrder(nodes, parentId, ordered);
 }
 
 /** 全部日志节点，按最后更新时间由近及远 */
 export function listLogNodesByUpdatedDesc(nodes: LogNode[]): LogNode[] {
   return nodes.filter((n) => n.kind === "log").sort(compareByUpdatedAtDesc);
-}
-
-/** 全部 kind=log 的节点 id */
-export function listAllLogIds(nodes: LogNode[]): string[] {
-  return nodes.filter((n) => n.kind === "log").map((n) => n.id);
-}
-
-/** 收集某节点子树中所有 kind=log 的节点 id（含自身若为 log） */
-export function collectDescendantLogIds(nodes: LogNode[], nodeId: string): string[] {
-  const node = nodes.find((n) => n.id === nodeId);
-  if (!node) return [];
-  const ids: string[] = node.kind === "log" ? [node.id] : [];
-  for (const child of getChildren(nodes, node.id)) {
-    ids.push(...collectDescendantLogIds(nodes, child.id));
-  }
-  return ids;
 }
 
 /** 侧栏等 UI：有子节点时用文件夹图标；节点本身仍是日志，可写总述 */
@@ -88,6 +135,18 @@ export function nodeHasChildLogs(nodes: LogNode[], nodeId: string): boolean {
 export function getDescendantIds(nodes: LogNode[], id: string): string[] {
   const children = nodes.filter((node) => node.parentId === id);
   return children.flatMap((child) => [child.id, ...getDescendantIds(nodes, child.id)]);
+}
+
+/** 某节点子树内全部日志 id（含自身若为 log） */
+export function collectLogIdsInSubtree(nodes: LogNode[], nodeId: string): string[] {
+  const node = nodes.find((n) => n.id === nodeId);
+  if (!node) return [];
+  const ids: string[] = node.kind === "log" ? [node.id] : [];
+  for (const descId of getDescendantIds(nodes, nodeId)) {
+    const desc = nodes.find((n) => n.id === descId);
+    if (desc?.kind === "log") ids.push(desc.id);
+  }
+  return ids;
 }
 
 export function getNodePath(nodes: LogNode[], nodeId: string): LogNode[] {

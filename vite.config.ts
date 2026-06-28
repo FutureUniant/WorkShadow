@@ -11,15 +11,33 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
-          if (id.includes("@tiptap")) return "tiptap";
-          if (id.includes("katex")) return "katex";
-          if (id.includes("react-markdown") || id.includes("remark-") || id.includes("rehype-")) return "markdown";
-          if (id.includes("lucide-react")) return "icons";
+          const p = id.replace(/\\/g, "/");
+          if (p.includes("@lancedb") || p.includes("apache-arrow")) return "lancedb";
+          if (p.includes("@flowrag")) return "flowrag";
+          if (p.includes("@tiptap") || p.includes("/prosemirror")) return "tiptap";
+          if (p.includes("katex")) return "katex";
+          if (
+            p.includes("react-markdown") ||
+            p.includes("/remark") ||
+            p.includes("/rehype") ||
+            p.includes("/micromark") ||
+            p.includes("/unified") ||
+            p.includes("/mdast-") ||
+            p.includes("/hast-") ||
+            p.includes("/vfile")
+          ) {
+            return "markdown";
+          }
+          if (p.includes("lucide-react")) return "icons";
+          if (p.includes("/react-dom/") || p.includes("/react/") || p.includes("/scheduler/")) return "react";
+          if (p.includes("i18next")) return "i18n";
+          if (p.includes("@tauri-apps")) return "tauri";
           return "vendor";
         }
       }
     },
-    chunkSizeWarningLimit: 900
+    /** 桌面端依赖体积较大；分包后单 chunk 仍可能略超 500 kB，仅作提示阈值 */
+    chunkSizeWarningLimit: 1600
   },
   /** 应用静态资源统一走 src/assets 与 Vite 打包，不使用 public 目录 */
   publicDir: false,
@@ -28,7 +46,6 @@ export default defineConfig({
     port: 1420,
     strictPort: true
   },
-  envPrefix: ["VITE_", "TAURI_"],
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"]

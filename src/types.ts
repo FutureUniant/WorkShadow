@@ -1,9 +1,17 @@
-import type { ModelProvider } from "./services/modelProviders";
-
 export type Language = "zh" | "en" | "system";
 export type ThemeMode = "light" | "dark";
 export type MediaStrategy = "embed" | "reference";
 export type NodeKind = "folder" | "log";
+
+export type ModelProvider =
+  | "openai"
+  | "aliyun"
+  | "gemini"
+  | "anthropic"
+  | "siliconflow"
+  | "deepseek"
+  | "tencent"
+  | "openaiCompatible";
 
 /** 语义检索可用时，向量结果与关键词结果的展示顺序 */
 export type SearchResultOrder = "combined" | "semanticFirst" | "keywordFirst";
@@ -15,7 +23,7 @@ export interface ModelConfig {
   model: string;
 }
 
-/** 按服务商存档；每个 provider 键至多一条 */
+/** 按服务商分别保存的模型配置；每个服务商至多一条（切换时恢复） */
 export type ModelProfiles = Partial<Record<ModelProvider, ModelConfig>>;
 
 /** 与 Ctrl / ⌘ 的组合方式；新建日志等场景请使用 ctrl、meta 或 ctrlOrMeta */
@@ -45,16 +53,19 @@ export interface AppSettings {
   logDirectory: string;
   tempDirectory: string;
   mediaStrategy: MediaStrategy;
-  /** 当前生效的 LLM 配置 */
   llm: ModelConfig;
-  /** 各服务商已填写的 LLM 快照 */
+  /** 各服务商 LLM 配置快照；`llm` 为当前生效项 */
   llmProfiles?: ModelProfiles;
   vlm: ModelConfig;
-  /** 已应用的 Embedding（参与 LanceDB 索引） */
   embedding: ModelConfig;
-  /** 各服务商 Embedding 草稿 */
+  /** 各服务商 Embedding 配置快照；`embedding` 为当前已应用项 */
   embeddingProfiles?: ModelProfiles;
+  /** 默认 combined：LanceDB 内向量 + BM25 混合分；其余为结果列表分段排序 */
   searchResultOrder: SearchResultOrder;
+  /**
+   * 语义检索最低相似度（0–1，基于向量余弦相似度）。
+   * 0 表示不限制；仅桌面端 LanceDB 向量结果会应用。
+   */
   semanticMinSimilarity: number;
   shortcuts: ShortcutMap;
 }
@@ -64,6 +75,8 @@ export interface LogNode {
   parentId: string | null;
   title: string;
   kind: NodeKind;
+  /** 同级手动排序（越小越靠前）；未设置时侧栏按 createdAt 排序 */
+  sortOrder?: number;
   createdAt: string;
   updatedAt: string;
   tiptapJson: unknown;
